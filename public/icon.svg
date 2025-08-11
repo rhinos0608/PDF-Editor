@@ -1,0 +1,47 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="5"/>
+      <feOffset dx="0" dy="5" result="offsetblur"/>
+      <feFlood flood-color="#000000" flood-opacity="0.2"/>
+      <feComposite in2="offsetblur" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background Circle -->
+  <circle cx="256" cy="256" r="256" fill="url(#bg-gradient)"/>
+  
+  <!-- PDF Document Shape -->
+  <g filter="url(#shadow)">
+    <rect x="140" y="80" width="232" height="320" rx="10" fill="white" opacity="0.95"/>
+    
+    <!-- Document Lines -->
+    <rect x="170" y="120" width="172" height="8" fill="#667eea" opacity="0.8"/>
+    <rect x="170" y="145" width="142" height="6" fill="#667eea" opacity="0.6"/>
+    <rect x="170" y="165" width="152" height="6" fill="#667eea" opacity="0.4"/>
+    <rect x="170" y="185" width="132" height="6" fill="#667eea" opacity="0.6"/>
+    <rect x="170" y="205" width="172" height="6" fill="#667eea" opacity="0.4"/>
+    <rect x="170" y="225" width="122" height="6" fill="#667eea" opacity="0.6"/>
+    <rect x="170" y="245" width="162" height="6" fill="#667eea" opacity="0.4"/>
+    <rect x="170" y="265" width="142" height="6" fill="#667eea" opacity="0.6"/>
+    
+    <!-- Edit Icon -->
+    <g transform="translate(280, 320)">
+      <circle cx="0" cy="0" r="40" fill="#764ba2" opacity="0.9"/>
+      <path d="M-15 -5 L5 -5 L5 -15 L15 -5 L5 5 L5 -5 M-15 -5 L-15 15 L5 15 L5 5" 
+            stroke="white" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    
+    <!-- PDF Text -->
+    <text x="256" y="365" font-family="Arial, sans-serif" font-size="24" font-weight="bold" 
+          text-anchor="middle" fill="white" opacity="0.9">PDF</text>
+  </g>
+</svg>
