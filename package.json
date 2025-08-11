@@ -1,0 +1,85 @@
+{
+  "name": "professional-pdf-editor",
+  "version": "1.0.0",
+  "description": "Professional PDF Editor with comprehensive features",
+  "main": "dist/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "concurrently \"npm run dev:main\" \"npm run dev:renderer\"",
+    "dev:main": "webpack --config webpack.main.config.js --mode development --watch",
+    "dev:renderer": "webpack serve --config webpack.renderer.config.js --mode development",
+    "build": "npm run build:main && npm run build:renderer",
+    "build:main": "webpack --config webpack.main.config.js --mode production",
+    "build:renderer": "webpack --config webpack.renderer.config.js --mode production",
+    "dist": "electron-builder",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "keywords": [
+    "pdf",
+    "editor",
+    "electron"
+  ],
+  "author": "Professional PDF Editor Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "copy-webpack-plugin": "^11.0.0",
+    "@types/react": "^18.2.0",
+    "@types/react-color": "^3.0.13",
+    "@types/react-dom": "^18.2.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "concurrently": "^8.0.0",
+    "css-loader": "^6.8.0",
+    "electron": "^27.0.0",
+    "electron-builder": "^24.0.0",
+    "eslint": "^8.45.0",
+    "html-webpack-plugin": "^5.5.0",
+    "style-loader": "^3.3.0",
+    "ts-loader": "^9.4.0",
+    "typescript": "^5.0.0",
+    "webpack": "^5.88.0",
+    "webpack-cli": "^5.1.0",
+    "webpack-dev-server": "^4.15.0"
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "^6.4.0",
+    "@fortawesome/fontawesome-svg-core": "^6.4.0",
+    "@fortawesome/free-solid-svg-icons": "^6.4.0",
+    "@fortawesome/react-fontawesome": "^0.2.0",
+    "@pdf-lib/fontkit": "^1.1.1",
+    "electron-store": "^8.1.0",
+    "electron-updater": "^6.1.0",
+    "file-saver": "^2.0.5",
+    "jspdf": "^2.5.1",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^3.11.0",
+    "react": "^18.2.0",
+    "react-color": "^2.19.3",
+    "react-dom": "^18.2.0",
+    "react-hotkeys-hook": "^4.4.0",
+    "react-resizable-panels": "^0.0.55",
+    "react-toastify": "^9.1.3",
+    "tesseract.js": "^5.0.0",
+    "uuid": "^9.0.0"
+  },
+  "build": {
+    "appId": "com.professional.pdfeditor",
+    "productName": "Professional PDF Editor",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "public/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "public/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

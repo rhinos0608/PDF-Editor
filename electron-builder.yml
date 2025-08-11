@@ -1,0 +1,84 @@
+appId: com.professional.pdfeditor
+productName: Professional PDF Editor
+directories:
+  output: release
+  buildResources: build-resources
+
+files:
+  - dist/**/*
+  - public/**/*
+  - node_modules/**/*
+  - package.json
+
+extraResources:
+  - from: public/
+    to: public/
+    filter:
+      - "**/*"
+
+win:
+  target: nsis
+  icon: public/icon.ico
+  publisherName: Professional PDF Editor Team
+  certificateFile: null
+  certificatePassword: null
+  verifyUpdateCodeSignature: false
+  requestedExecutionLevel: asInvoker
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  allowElevation: true
+  installerIcon: public/icon.ico
+  uninstallerIcon: public/icon.ico
+  installerHeaderIcon: public/icon.ico
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Professional PDF Editor
+  license: LICENSE
+  warningsAsErrors: false
+
+mac:
+  category: public.app-category.productivity
+  icon: public/icon.icns
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build-resources/entitlements.mac.plist
+  entitlementsInherit: build-resources/entitlements.mac.plist
+
+linux:
+  target:
+    - AppImage
+    - deb
+  icon: public/icon.png
+  category: Office
+  description: Professional PDF Editor - Complete PDF editing solution
+  desktop:
+    Name: Professional PDF Editor
+    Comment: Edit, annotate, and manage PDF documents
+    Categories: Office;Utility;
+
+dmg:
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+
+appImage:
+  systemIntegration: doNotAsk
+
+protocols:
+  - name: pdf-editor-protocol
+    schemes:
+      - pdf-editor
+
+fileAssociations:
+  - ext: pdf
+    name: PDF Document
+    description: Portable Document Format
+    icon: public/icon.ico
+    role: Editor
