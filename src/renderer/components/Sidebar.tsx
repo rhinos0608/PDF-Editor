@@ -5,21 +5,36 @@ interface SidebarProps {
   onToggleThumbnails: () => void;
   onToggleProperties: () => void;
   onToggleSearch: () => void;
+  onToggleNavigation: () => void;
   showThumbnails: boolean;
   showProperties: boolean;
   showSearch: boolean;
+  showNavigation: boolean;
+  onToggleSidebar: () => void; // New prop
+  isSidebarExpanded: boolean; // New prop
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
   onToggleThumbnails,
   onToggleProperties,
   onToggleSearch,
+  onToggleNavigation,
   showThumbnails,
   showProperties,
-  showSearch
+  showSearch,
+  showNavigation,
+  onToggleSidebar, // Destructure new prop
+  isSidebarExpanded // Destructure new prop
 }) => {
   return (
     <div className="sidebar">
+      <button
+        className="sidebar-btn sidebar-toggle-btn" // New class for toggle button
+        onClick={onToggleSidebar}
+        title={isSidebarExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
+      >
+        <i className={`fas ${isSidebarExpanded ? 'fa-chevron-left' : 'fa-chevron-right'}`}></i>
+      </button>
       <button
         className={`sidebar-btn ${showThumbnails ? 'active' : ''}`}
         onClick={onToggleThumbnails}
@@ -33,6 +48,13 @@ const Sidebar: React.FC<SidebarProps> = ({
         title="Search"
       >
         <i className="fas fa-search"></i>
+      </button>
+      <button
+        className={`sidebar-btn ${showNavigation ? 'active' : ''}`}
+        onClick={onToggleNavigation}
+        title="Navigation - Jump to signatures, forms, and bookmarks"
+      >
+        <i className="fas fa-map-signs"></i>
       </button>
       <button
         className={`sidebar-btn ${showProperties ? 'active' : ''}`}

@@ -6,12 +6,14 @@ interface ThumbnailPanelProps {
   pdf: PDFDocumentProxy;
   currentPage: number;
   onPageSelect: (page: number) => void;
+  isSidebarExpanded: boolean; // New prop
 }
 
 const ThumbnailPanel: React.FC<ThumbnailPanelProps> = ({
   pdf,
   currentPage,
-  onPageSelect
+  onPageSelect,
+  isSidebarExpanded // Destructure new prop
 }) => {
   const [thumbnails, setThumbnails] = useState<string[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -61,7 +63,7 @@ const ThumbnailPanel: React.FC<ThumbnailPanelProps> = ({
       <div className="thumbnail-header">
         <h3>Pages</h3>
       </div>
-      <div className="thumbnails-container">
+      <div className={`thumbnails-container ${isSidebarExpanded ? 'compact' : ''}`}>
         {thumbnails.map((thumb, index) => (
           <div
             key={index}

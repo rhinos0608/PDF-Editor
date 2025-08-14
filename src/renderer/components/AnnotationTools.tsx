@@ -5,16 +5,21 @@ import './AnnotationTools.css';
 interface AnnotationToolsProps {
   tool: string;
   onAnnotationAdd?: (annotation: any) => void;
+  penThickness: number; // New prop
+  selectedColor: string; // New prop
+  highlightOpacity: number; // New prop
+  onToolOptionChange?: (tool: string, options: any) => void; // New prop to pass changes back
 }
 
 const AnnotationTools: React.FC<AnnotationToolsProps> = ({
-  tool
-  // onAnnotationAdd - will be used when annotation creation is implemented
+  tool,
+  onAnnotationAdd,
+  penThickness,
+  selectedColor,
+  highlightOpacity,
+  onToolOptionChange
 }) => {
-  const [color, setColor] = useState('#000000');
   const [fontSize, setFontSize] = useState(12);
-  const [lineWidth, setLineWidth] = useState(2);
-  const [opacity, setOpacity] = useState(1);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [fontFamily, setFontFamily] = useState('Helvetica');
 
@@ -60,20 +65,21 @@ const AnnotationTools: React.FC<AnnotationToolsProps> = ({
               min="0.1"
               max="1"
               step="0.1"
-              value={opacity}
-              onChange={(e) => setOpacity(parseFloat(e.target.value))}
+              value={highlightOpacity}
+              onChange={(e) => onToolOptionChange?.(tool, { opacity: parseFloat(e.target.value) })}
             />
-            <span>{Math.round(opacity * 100)}%</span>
+            <span>{Math.round(highlightOpacity * 100)}%</span>
           </div>
         );
       case 'draw':
       case 'shapes':
+      case 'pen': // Add pen tool to use line width
         return (
           <div className="tool-option">
             <label>Line Width:</label>
             <select
-              value={lineWidth}
-              onChange={(e) => setLineWidth(parseInt(e.target.value))}
+              value={penThickness}
+              onChange={(e) => onToolOptionChange?.(tool, { thickness: parseInt(e.target.value) })}
             >
               {lineWidths.map(width => (
                 <option key={width} value={width}>{width}px</option>
@@ -97,7 +103,7 @@ const AnnotationTools: React.FC<AnnotationToolsProps> = ({
           <div className="color-picker-wrapper">
             <div
               className="color-preview"
-              style={{ backgroundColor: color }}
+              style={{ backgroundColor: selectedColor }}
               onClick={() => setShowColorPicker(!showColorPicker)}
             />
             {showColorPicker && (
@@ -107,8 +113,8 @@ const AnnotationTools: React.FC<AnnotationToolsProps> = ({
                   onClick={() => setShowColorPicker(false)}
                 />
                 <ChromePicker
-                  color={color}
-                  onChange={(colorResult: ColorResult) => setColor(colorResult.hex)}
+                  color={selectedColor}
+                  onChange={(colorResult: ColorResult) => onToolOptionChange?.(tool, { color: colorResult.hex })}
                 />
               </div>
             )}

@@ -20,13 +20,53 @@ interface ExtractedPage {
 
 export class PDFService {
   // Core PDF operations
+  private workerSrc: string = '';
+
+  constructor() {
+    // Set the worker source path based on environment
+    const isDev = process.env.NODE_ENV === 'development';
+    this.workerSrc = isDev
+      ? '/node_modules/pdfjs-dist/build/pdf.worker.js'
+      : './pdf.worker.min.js';
+    
+    // Configure PDF.js worker
+    pdfjsLib.GlobalWorkerOptions.workerSrc = this.workerSrc;
+  }
+
+  /**
+   * Load a PDF document from binary data
+   * @param data PDF binary data
+   * @returns Promise with PDF document proxy
+   */
   async loadPDF(data: Uint8Array): Promise<PDFDocumentProxy> {
     try {
-      const loadingTask = pdfjsLib.getDocument(data);
-      return await loadingTask.promise;
+      console.log('Loading PDF document...');
+      
+      // Configure PDF.js
+      const loadingTask = pdfjsLib.getDocument({
+        data,
+        cMapUrl: process.env.NODE_ENV === 'development'
+          ? '/node_modules/pdfjs-dist/cmaps/'
+          : './cmaps/',
+        cMapPacked: true,
+        useWorkerFetch: true,
+        isEvalSupported: false,
+        useSystemFonts: true
+      });
+      
+      // Set up progress tracking
+      loadingTask.onProgress = (progress) => {
+        const percent = Math.round((progress.loaded / progress.total) * 100);
+        console.log(`Loading PDF: ${percent}%`);
+      };
+      
+      const pdf = await loadingTask.promise;
+      console.log(`PDF loaded successfully. Pages: ${pdf.numPages}`);
+      return pdf;
+      
     } catch (error) {
       console.error('Error loading PDF:', error);
-      throw new Error('Failed to load PDF document');
+      throw new Error(`Failed to load PDF document: ${error.message}`);
     }
   }
 
@@ -203,7 +243,9 @@ export class PDFService {
       color = { r: 0.5, g: 0.5, b: 0.5 }
     } = options;
     
-    const pdfDoc = await PDFDocument.load(pdfBytes);
+    // Create safe copy to prevent ArrayBuffer detachment
+    const safePdfBytes = new Uint8Array(pdfBytes.buffer.slice(pdfBytes.byteOffset, pdfBytes.byteOffset + pdfBytes.byteLength));
+    const pdfDoc = await PDFDocument.load(safePdfBytes);
     const pages = pdfDoc.getPages();
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     
@@ -308,7 +350,10 @@ export class PDFService {
     if (metadata.title) pdfDoc.setTitle(metadata.title);
     if (metadata.author) pdfDoc.setAuthor(metadata.author);
     if (metadata.subject) pdfDoc.setSubject(metadata.subject);
-    if (metadata.keywords) pdfDoc.setKeywords(metadata.keywords.join(', '));
+    if (metadata.keywords && metadata.keywords.length > 0) {
+      // setKeywords expects string array in pdf-lib
+      pdfDoc.setKeywords(metadata.keywords);
+    }
     if (metadata.creator) pdfDoc.setCreator(metadata.creator);
     if (metadata.producer) pdfDoc.setProducer(metadata.producer);
     if (metadata.creationDate) pdfDoc.setCreationDate(metadata.creationDate);
@@ -406,5 +451,94 @@ export class PDFService {
       height,
       rotation: rotation.angle
     };
+  }
+
+  // Advanced page manipulation tools
+  
+  /**
+   * Crop pages to specified dimensions
+   */
+  async cropPages(
+    pdfBytes: Uint8Array,
+    cropArea: { x: number; y: number; width: number; height: number },
+    pageNumbers?: number[]
+  ): Promise<Uint8Array> {
+    const pdfDoc = await PDFDocument.load(pdfBytes);
+    const pages = pdfDoc.getPages();
+    
+    const targetPages = pageNumbers 
+      ? pageNumbers.map(n => pages[n - 1]).filter(p => p)
+      : pages;
+    
+    targetPages.forEach(page => {
+      page.setCropBox(cropArea.x, cropArea.y, cropArea.width, cropArea.height);
+    });
+    
+    return await pdfDoc.save();
+  }
+
+  /**
+   * Batch process multiple PDFs
+   */
+  async batchProcess(
+    operations: Array<{
+      type: 'merge' | 'split' | 'rotate' | 'compress' | 'watermark';
+      inputFiles: Uint8Array[];
+      options?: any;
+    }>
+  ): Promise<Uint8Array[]> {
+    const results: Uint8Array[] = [];
+    
+    for (const operation of operations) {
+      try {
+        switch (operation.type) {
+          case 'merge':
+            const merged = await this.mergePDFs(operation.inputFiles);
+            results.push(merged);
+            break;
+            
+          case 'rotate':
+            for (const file of operation.inputFiles) {
+              const rotated = await this.rotatePages(
+                file,
+                operation.options?.rotation || 90,
+                operation.options?.pageNumbers
+              );
+              results.push(rotated);
+            }
+            break;
+            
+          case 'compress':
+            for (const file of operation.inputFiles) {
+              const compressed = await this.compressPDF(
+                file,
+                operation.options?.quality || 'medium'
+              );
+              results.push(compressed);
+            }
+            break;
+            
+          case 'watermark':
+            for (const file of operation.inputFiles) {
+              const watermarked = await this.addWatermark(
+                file,
+                operation.options?.text || 'WATERMARK',
+                operation.options?.options || {}
+              );
+              results.push(watermarked);
+            }
+            break;
+            
+          default:
+            console.warn(`Unsupported batch operation: ${operation.type}`);
+            break;
+        }
+      } catch (error) {
+        console.error(`Batch operation ${operation.type} failed:`, error);
+        // Continue with other operations
+      }
+    }
+    
+    return results;
   }
 }

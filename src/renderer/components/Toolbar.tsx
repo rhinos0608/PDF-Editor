@@ -24,6 +24,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
 }) => {
   const tools = [
     { id: 'select', icon: 'fa-mouse-pointer', tooltip: 'Select' },
+    { id: 'edit', icon: 'fa-edit', tooltip: 'Edit Text (Direct Editing)' },
     { id: 'text', icon: 'fa-font', tooltip: 'Add Text' },
     { id: 'highlight', icon: 'fa-highlighter', tooltip: 'Highlight' },
     { id: 'draw', icon: 'fa-pen', tooltip: 'Draw' },
@@ -32,7 +33,9 @@ const Toolbar: React.FC<ToolbarProps> = ({
     { id: 'signature', icon: 'fa-signature', tooltip: 'Signature' },
     { id: 'eraser', icon: 'fa-eraser', tooltip: 'Eraser' },
     { id: 'note', icon: 'fa-sticky-note', tooltip: 'Add Note' },
-    { id: 'link', icon: 'fa-link', tooltip: 'Add Link' }
+    { id: 'link', icon: 'fa-link', tooltip: 'Add Link' },
+    { id: 'redact', icon: 'fa-ban', tooltip: 'Redact' },
+    { id: 'watermark', icon: 'fa-tint', tooltip: 'Add Watermark' }
   ];
 
   const zoomLevels = [25, 50, 75, 100, 125, 150, 200, 300, 400];

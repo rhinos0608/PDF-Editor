@@ -1,0 +1,233 @@
+/* Enhanced PDF Viewer Styles */
+.enhanced-pdf-viewer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #f5f5f5;
+  --scale-factor: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+/* PDF Canvas */
+.pdf-canvas {
+  display: block;
+  margin: 20px auto;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  background: white;
+}
+
+/* Text Layer */
+.text-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  opacity: 0.2;
+  line-height: 1.0;
+  --scale-factor: 1;
+}
+
+.text-layer > span {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+}
+
+.text-layer .highlight {
+  margin: -1px;
+  padding: 1px;
+  background-color: rgba(180, 0, 170, 1);
+  border-radius: 4px;
+}
+
+.text-layer .highlight.begin {
+  border-radius: 4px 0px 0px 4px;
+}
+
+.text-layer .highlight.end {
+  border-radius: 0px 4px 4px 0px;
+}
+
+.text-layer .highlight.middle {
+  border-radius: 0px;
+}
+
+.text-layer .highlight.selected {
+  background-color: rgba(0, 100, 0, 1);
+}
+
+/* Rendering State Indicators */
+.rendering-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+}
+
+.rendering-indicator .spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e0e0e0;
+  border-top: 3px solid #0078d4;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.error-indicator {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 0, 0, 0.1);
+  border: 1px solid #ff6b6b;
+  color: #d63031;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 12px;
+  z-index: 100;
+}
+
+/* Edit Mode Overlay */
+.edit-mode-overlay {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 50;
+}
+
+.edit-mode-hint {
+  background: rgba(0, 120, 212, 0.9);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Selected Text Info */
+.selected-text-info {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  max-width: 300px;
+  z-index: 50;
+}
+
+/* Editable Text Regions */
+.text-region {
+  position: absolute;
+  cursor: text;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.text-region:hover {
+  border-color: rgba(0, 120, 212, 0.5);
+  background: rgba(0, 120, 212, 0.05);
+}
+
+.text-region.editing {
+  border-color: #0078d4;
+  background: rgba(0, 120, 212, 0.1);
+  box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.3);
+}
+
+/* Annotation Styles */
+.annotation {
+  position: absolute;
+  pointer-events: none;
+}
+
+.annotation.highlight {
+  background: rgba(255, 255, 0, 0.3);
+  mix-blend-mode: multiply;
+}
+
+.annotation.rectangle {
+  border: 2px solid red;
+  background: transparent;
+}
+
+.annotation.circle {
+  border: 2px solid red;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.annotation.text {
+  color: red;
+  font-weight: bold;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .enhanced-pdf-viewer {
+    margin: 10px;
+  }
+  
+  .pdf-canvas {
+    margin: 10px auto;
+  }
+  
+  .edit-mode-hint {
+    font-size: 11px;
+    padding: 6px 10px;
+  }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+  .text-region:hover {
+    border-color: #000;
+    background: rgba(255, 255, 255, 0.8);
+  }
+  
+  .text-region.editing {
+    border-color: #000;
+    background: rgba(255, 255, 255, 0.9);
+  }
+}
+
+/* Dark Theme Support */
+[data-theme="dark"] .enhanced-pdf-viewer {
+  background: #2d2d2d;
+}
+
+[data-theme="dark"] .rendering-indicator {
+  background: rgba(45, 45, 45, 0.95);
+  color: #ffffff;
+}
+
+[data-theme="dark"] .selected-text-info {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}

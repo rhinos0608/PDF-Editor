@@ -1,5 +1,6 @@
 import { PDFDocument, rgb, StandardFonts, PDFPage, PDFFont, degrees } from 'pdf-lib';
 import { v4 as uuidv4 } from 'uuid';
+import { createSafePDFBytes } from '../utils/pdfUtils';
 
 export interface Annotation {
   id: string;
@@ -146,7 +147,8 @@ export class AnnotationService {
 
   // Apply annotations to PDF
   async applyAnnotationsToPDF(pdfBytes: Uint8Array): Promise<Uint8Array> {
-    const pdfDoc = await PDFDocument.load(pdfBytes);
+    const safePdfBytes = createSafePDFBytes(pdfBytes);
+    const pdfDoc = await PDFDocument.load(safePdfBytes);
     const pages = pdfDoc.getPages();
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);

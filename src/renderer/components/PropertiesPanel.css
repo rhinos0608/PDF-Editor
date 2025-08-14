@@ -1,7 +1,8 @@
 .properties-panel {
-  width: 300px;
+  width: 100%; /* Take full width of parent (adobe-properties-panel) */
+  height: 100%; /* Take full height of parent */
   background-color: var(--bg-primary);
-  border-left: 1px solid var(--border-color);
+  border-left: 1px solid var(--border-color); /* This border will be handled by adobe-properties-panel now */
   display: flex;
   flex-direction: column;
   overflow: hidden;

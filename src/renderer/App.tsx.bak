@@ -1,0 +1,1663 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { ToastContainer, toast } from 'react-toastify';
+import { PDFDocument, rgb, StandardFonts, degrees } from 'pdf-lib';
+import * as pdfjsLib from 'pdfjs-dist';
+import { PDFDocumentProxy } from 'pdfjs-dist/types/src/display/api';
+import Toolbar from './components/Toolbar';
+import Sidebar from './components/Sidebar';
+import PDFViewer from './components/PDFViewer';
+import StatusBar from './components/StatusBar';
+import AnnotationTools from './components/AnnotationTools';
+import SearchPanel from './components/SearchPanel';
+import ThumbnailPanel from './components/ThumbnailPanel';
+import PropertiesPanel from './components/PropertiesPanel';
+import FormEditor from './components/FormEditor';
+import InputDialog from './components/InputDialog';
+import PDFEditMode from './components/PDFEditMode';
+import RedactionTool from './components/RedactionTool';
+import WatermarkDialog from './components/WatermarkDialog';
+import BookmarksPanel from './components/BookmarksPanel';
+import ExportDialog from './components/ExportDialog';
+import { PDFService } from './services/PDFService';
+import { RealPDFTextEditor } from './services/RealPDFTextEditor';
+import { AnnotationService } from './services/AnnotationService';
+import { OCRService } from './services/OCRService';
+import { SecurityService } from './services/SecurityService';
+import { searchService, SearchResult, SearchOptions } from './services/SearchService';
+import './styles/App.css';
+import 'react-toastify/dist/ReactToastify.css';
+
+// Set up PDF.js worker with fallback options
+try {
+  if (typeof window !== 'undefined' && window.electronAPI) {
+    // Electron environment - use local worker
+    pdfjsLib.GlobalWorkerOptions.workerSrc = './pdf.worker.min.js';
+  } else {
+    // Web environment - use CDN
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+  }
+} catch (error) {
+  console.error('Failed to configure PDF.js worker:', error);
+  // Fallback to disable worker
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+}
+
+interface AppState {
+  currentPDF: PDFDocumentProxy | null;
+  currentPDFBytes: Uint8Array | null;
+  currentPage: number;
+  totalPages: number;
+  zoom: number;
+  rotation: number;
+  isDarkMode: boolean;
+  currentTool: string;
+  isLoading: boolean;
+  fileName: string;
+  filePath: string | null;
+  hasChanges: boolean;
+  selectedText: string;
+  annotations: any[];
+  searchText: string;
+  searchResults: SearchResult[];
+  currentSearchIndex: number;
+  isSearching: boolean;
+  showThumbnails: boolean;
+  showProperties: boolean;
+  showSearch: boolean;
+  isFullscreen: boolean;
+  sidebarTab: 'thumbnails' | 'bookmarks' | 'attachments';
+  showFormEditor: boolean;
+  formFields: any[];
+  showInputDialog: boolean;
+  inputDialogConfig: {
+    title: string;
+    placeholder: string;
+    onConfirm: (value: string) => void;
+  } | null;
+  isEditMode: boolean;
+  contentEdits: any[];
+  // New state for Adobe-style features
+  showRedactionTool: boolean;
+  showWatermarkDialog: boolean;
+  bookmarks: any[];
+  showBookmarks: boolean;
+  isCompressing: boolean;
+  compressionRatio: number;
+  showExportOptions: boolean;
+  exportFormat: string;
+}
+
+// Helper function to convert Uint8Array to ArrayBuffer
+const toArrayBuffer = (uint8Array: Uint8Array): ArrayBuffer => {
+  const buffer = new ArrayBuffer(uint8Array.byteLength);
+  new Uint8Array(buffer).set(uint8Array);
+  return buffer;
+};
+
+const App: React.FC = () => {
+  const [state, setState] = useState<AppState>({
+    currentPDF: null,
+    currentPDFBytes: null,
+    currentPage: 1,
+    totalPages: 0,
+    zoom: 100,
+    rotation: 0,
+    isDarkMode: true,
+    currentTool: 'select',
+    isLoading: false,
+    fileName: '',
+    filePath: null,
+    hasChanges: false,
+    selectedText: '',
+    annotations: [],
+    searchText: '',
+    searchResults: [],
+    currentSearchIndex: -1,
+    isSearching: false,
+    showThumbnails: true,
+    showProperties: false,
+    showSearch: false,
+    isFullscreen: false,
+    sidebarTab: 'thumbnails',
+    showFormEditor: false,
+    formFields: [],
+    showInputDialog: false,
+    inputDialogConfig: null,
+    isEditMode: false,
+    contentEdits: [],
+    // New state for Adobe-style features
+    showRedactionTool: false,
+    showWatermarkDialog: false,
+    bookmarks: [],
+    showBookmarks: false,
+    isCompressing: false,
+    compressionRatio: 0,
+    showExportOptions: false,
+    exportFormat: 'pdf'
+  });
+
+  const pdfService = useRef(new PDFService());
+  const annotationService = useRef(new AnnotationService());
+  const ocrService = useRef(new OCRService());
+  const securityService = useRef(new SecurityService());
+  const realPDFTextEditor = useRef(new RealPDFTextEditor());
+  const [extractedText, setExtractedText] = useState<any[]>([]);
+  const autoSaveTimer = useRef<NodeJS.Timeout | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Initialize app and load preferences
+  useEffect(() => {
+    const initApp = async () => {
+      try {
+        console.log('🚀 Initializing PDF Editor App...');
+        
+        // Set dark theme by default
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.body.classList.add('adobe-theme');
+        
+        // Check if electronAPI is available
+        if (typeof window !== 'undefined' && window.electronAPI?.getPreferences) {
+          try {
+            console.log('📱 Loading Electron preferences...');
+            const preferences = await window.electronAPI.getPreferences();
+            setState(prev => ({
+              ...prev,
+              isDarkMode: preferences.theme === 'dark',
+              zoom: typeof preferences.defaultZoom === 'number' ? preferences.defaultZoom : 100,
+              showThumbnails: preferences.showThumbnails !== false
+            }));
+            
+            const themeValue = String(preferences.theme || 'dark');
+            document.documentElement.setAttribute('data-theme', themeValue);
+            console.log('✅ Preferences loaded successfully');
+          } catch (error) {
+            console.warn('⚠️ Could not load preferences:', error);
+          }
+        } else {
+          console.log('🌐 Running in web mode (no Electron API)');
+        }
+        
+        console.log('✅ App initialization complete');
+      } catch (error) {
+        console.error('❌ Failed to initialize app:', error);
+      }
+    };
+    
+    initApp();
+    
+    // Setup keyboard shortcuts
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl/Cmd + O: Open file
+      if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
+        e.preventDefault();
+        openPDF();
+      }
+      // Ctrl/Cmd + S: Save
+      else if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          savePDF(true); // Save As
+        } else {
+          savePDF(false); // Save
+        }
+      }
+      // Ctrl/Cmd + F: Search
+      else if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        setState(prev => ({ ...prev, showSearch: !prev.showSearch }));
+      }
+      // Escape: Close search or exit fullscreen
+      else if (e.key === 'Escape') {
+        if (state.showSearch) {
+          setState(prev => ({ ...prev, showSearch: false }));
+        }
+        if (document.fullscreenElement) {
+          document.exitFullscreen();
+        }
+      }
+      // F11: Toggle fullscreen
+      else if (e.key === 'F11') {
+        e.preventDefault();
+        toggleFullscreen();
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      if (typeof window !== 'undefined' && window.electronAPI?.removeAllListeners) {
+        window.electronAPI.removeAllListeners();
+      }
+      if (autoSaveTimer.current) {
+        clearInterval(autoSaveTimer.current);
+      }
+    };
+  }, []);
+
+  // Setup menu action listeners
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.electronAPI?.onMenuAction) {
+      const handleMenuAction = (action: string) => {
+        switch (action) {
+          case 'menu-open':
+            openPDF();
+            break;
+          case 'menu-save':
+            savePDF(false);
+            break;
+          case 'menu-save-as':
+            savePDF(true);
+            break;
+          case 'menu-print':
+            printPDF();
+            break;
+          case 'menu-zoom-in':
+            setZoom(prev => Math.min(prev + 10, 400));
+            break;
+          case 'menu-zoom-out':
+            setZoom(prev => Math.max(prev - 10, 25));
+            break;
+          case 'menu-zoom-reset':
+            setZoom(100);
+            break;
+          case 'menu-fit-width':
+            fitToWidth();
+            break;
+          case 'menu-fit-page':
+            fitToPage();
+            break;
+          case 'menu-rotate-left':
+            rotatePage(-90);
+            break;
+          case 'menu-rotate-right':
+            rotatePage(90);
+            break;
+          case 'menu-toggle-theme':
+            toggleTheme();
+            break;
+          case 'menu-find':
+            setState(prev => ({ ...prev, showSearch: !prev.showSearch }));
+            break;
+          case 'menu-insert-page':
+            insertPage();
+            break;
+          case 'menu-delete-page':
+            deletePage();
+            break;
+          case 'menu-merge-pdfs':
+            mergePDFs();
+            break;
+          case 'menu-split-pdf':
+            splitPDF();
+            break;
+          case 'menu-compress':
+            compressPDF();
+            break;
+          case 'menu-ocr':
+            performOCR();
+            break;
+          case 'menu-encrypt':
+            encryptPDF();
+            break;
+          case 'menu-decrypt':
+            decryptPDF();
+            break;
+          case 'menu-form-text':
+          case 'form-text':
+            setState(prev => ({ ...prev, showFormEditor: true, currentTool: 'text' }));
+            break;
+          case 'menu-form-checkbox':
+          case 'form-checkbox':
+            setState(prev => ({ ...prev, showFormEditor: true, currentTool: 'checkbox' }));
+            break;
+          case 'menu-form-radio':
+          case 'form-radio':
+            setState(prev => ({ ...prev, showFormEditor: true, currentTool: 'radio' }));
+            break;
+          case 'menu-form-dropdown':
+          case 'form-dropdown':
+            setState(prev => ({ ...prev, showFormEditor: true, currentTool: 'dropdown' }));
+            break;
+          case 'menu-digital-signature':
+          case 'digital-signature':
+            addDigitalSignature();
+            break;
+          case 'menu-redact':
+            setState(prev => ({ ...prev, showRedactionTool: true, currentTool: 'redact' }));
+            break;
+          case 'menu-watermark':
+            setState(prev => ({ ...prev, showWatermarkDialog: true }));
+            break;
+          case 'menu-bookmarks':
+            setState(prev => ({ ...prev, showBookmarks: !prev.showBookmarks }));
+            break;
+          case 'menu-export':
+            setState(prev => ({ ...prev, showExportOptions: true }));
+            break;
+          case 'menu-redact':
+            setState(prev => ({ ...prev, showRedactionTool: true, currentTool: 'redact' }));
+            break;
+          case 'menu-watermark':
+            setState(prev => ({ ...prev, showWatermarkDialog: true }));
+            break;
+          case 'menu-bookmarks':
+            setState(prev => ({ ...prev, showBookmarks: !prev.showBookmarks }));
+            break;
+          case 'menu-export':
+            setState(prev => ({ ...prev, showExportOptions: true }));
+            break;
+          default:
+            console.log('Unhandled menu action:', action);
+        }
+      };
+      
+      window.electronAPI.onMenuAction(handleMenuAction);
+    }
+  }, [state]);
+
+  // Auto-save functionality
+  useEffect(() => {
+    if (state.hasChanges && state.filePath) {
+      if (autoSaveTimer.current) {
+        clearInterval(autoSaveTimer.current);
+      }
+      
+      autoSaveTimer.current = setInterval(async () => {
+        await savePDF(false);
+      }, 5 * 60 * 1000); // Auto-save every 5 minutes
+    }
+    
+    return () => {
+      if (autoSaveTimer.current) {
+        clearInterval(autoSaveTimer.current);
+      }
+    };
+  }, [state.hasChanges, state.filePath]);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+      setState(prev => ({ ...prev, isFullscreen: true }));
+    } else {
+      document.exitFullscreen();
+      setState(prev => ({ ...prev, isFullscreen: false }));
+    }
+  };
+
+  const openPDF = async () => {
+    try {
+      // Check if we're in Electron
+      if (window.electronAPI?.openFile) {
+        const result = await window.electronAPI.openFile();
+        if (result) {
+          setState(prev => ({ ...prev, isLoading: true }));
+          
+          const uint8Array = new Uint8Array(result.data);
+          const loadingTask = pdfjsLib.getDocument(uint8Array);
+          const pdf = await loadingTask.promise;
+          
+          // Extract text for real editing
+          console.log('🔍 Extracting text for editing...');
+          const editableText = await realPDFTextEditor.current.extractEditableTextFromPDF(uint8Array);
+          console.log(`✅ Extracted ${editableText.length} editable text items`);
+          setExtractedText(editableText);
+          
+          setState(prev => ({
+            ...prev,
+            currentPDF: pdf,
+            currentPDFBytes: uint8Array,
+            totalPages: pdf.numPages,
+            currentPage: 1,
+            fileName: result.path.split(/[\\/]/).pop() || 'document.pdf',
+            filePath: result.path,
+            isLoading: false,
+            hasChanges: false,
+            annotations: [],
+            searchResults: [],
+            currentSearchIndex: -1
+          }));
+          
+          // Initialize search service with the new PDF
+          await searchService.initialize(pdf);
+          
+          // Add to recent files if in Electron
+          if (window.electronAPI.addRecentFile) {
+            await window.electronAPI.addRecentFile(result.path);
+          }
+          
+          toast.success('PDF opened successfully');
+        }
+      } else {
+        // Fallback for web version - use file input
+        fileInputRef.current?.click();
+      }
+    } catch (error) {
+      console.error('Error opening PDF:', error);
+      toast.error('Failed to open PDF');
+      setState(prev => ({ ...prev, isLoading: false }));
+    }
+  };
+
+  const handleFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    try {
+      setState(prev => ({ ...prev, isLoading: true }));
+      
+      const arrayBuffer = await file.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      const loadingTask = pdfjsLib.getDocument(uint8Array);
+      const pdf = await loadingTask.promise;
+      
+      setState(prev => ({
+        ...prev,
+        currentPDF: pdf,
+        currentPDFBytes: uint8Array,
+        totalPages: pdf.numPages,
+        currentPage: 1,
+        fileName: file.name,
+        filePath: null,
+        isLoading: false,
+        hasChanges: false,
+        annotations: [],
+        searchResults: [],
+        currentSearchIndex: -1
+      }));
+      
+      // Initialize search service with the new PDF
+      await searchService.initialize(pdf);
+      
+      toast.success('PDF opened successfully');
+    } catch (error) {
+      console.error('Error opening PDF:', error);
+      toast.error('Failed to open PDF');
+      setState(prev => ({ ...prev, isLoading: false }));
+    }
+  };
+
+  const savePDF = async (saveAs: boolean) => {
+    try {
+      if (!state.currentPDFBytes) {
+        toast.warning('No PDF to save');
+        return;
+      }
+      
+      // Check if we have any modifications to apply
+      let pdfBytes: Uint8Array;
+      
+      if (state.hasChanges && (state.annotations.length > 0 || state.rotation !== 0)) {
+        // Apply all modifications
+        const modifiedPDF = await applyModifications();
+        pdfBytes = await modifiedPDF.save();
+      } else {
+        // No changes, use original PDF bytes
+        pdfBytes = state.currentPDFBytes;
+      }
+      
+      if (window.electronAPI?.saveFile) {
+        let filePath = state.filePath;
+        
+        if (saveAs || !filePath) {
+          if (window.electronAPI.saveFileDialog) {
+            filePath = await window.electronAPI.saveFileDialog(state.fileName);
+            if (!filePath) return;
+          } else {
+            toast.error('Save dialog not available');
+            return;
+          }
+        }
+        
+        const result = await window.electronAPI.saveFile(filePath, toArrayBuffer(pdfBytes));
+        
+        if (result.success) {
+          setState(prev => ({
+            ...prev,
+            filePath,
+            hasChanges: false,
+            fileName: filePath.split(/[\\/]/).pop() || 'document.pdf'
+          }));
+          toast.success('PDF saved successfully');
+        } else {
+          toast.error(`Failed to save PDF: ${result.error}`);
+        }
+      } else {
+        // Web version - download the file
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = state.fileName || 'document.pdf';
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        setState(prev => ({ ...prev, hasChanges: false }));
+        toast.success('PDF downloaded successfully');
+      }
+    } catch (error) {
+      console.error('Error saving PDF:', error);
+      toast.error('Failed to save PDF');
+    }
+  };
+
+  const applyModifications = async (): Promise<PDFDocument> => {
+    try {
+      // Use the annotation service to apply modifications
+      let modifiedBytes = state.currentPDFBytes!;
+      
+      // Apply annotations if any exist
+      if (state.annotations.length > 0) {
+        // Clear existing annotations and add current ones to the service
+        annotationService.current.clearAllAnnotations();
+        
+        state.annotations.forEach(ann => {
+          annotationService.current.createAnnotation(
+            ann.type,
+            ann.pageIndex,
+            ann.x,
+            ann.y,
+            ann
+          );
+        });
+        
+        // Apply annotations to PDF
+        modifiedBytes = await annotationService.current.applyAnnotationsToPDF(modifiedBytes);
+      }
+      
+      // Apply rotation if needed
+      if (state.rotation !== 0) {
+        modifiedBytes = await pdfService.current.rotatePages(modifiedBytes, state.rotation);
+      }
+      
+      // Return the modified PDF document for final save
+      return await PDFDocument.load(modifiedBytes);
+    } catch (error) {
+      console.error('Error applying modifications:', error);
+      // Fallback to original PDF if modifications fail
+      return await PDFDocument.load(state.currentPDFBytes!);
+    }
+  };
+
+  const printPDF = () => {
+    if (state.currentPDF) {
+      window.print();
+    } else {
+      toast.warning('No PDF to print');
+    }
+  };
+
+  const setZoom = (newZoomOrUpdater: number | ((prev: number) => number)) => {
+    setState(prev => {
+      const newZoom = typeof newZoomOrUpdater === 'function' 
+        ? newZoomOrUpdater(prev.zoom) 
+        : newZoomOrUpdater;
+      const clampedZoom = Math.max(25, Math.min(400, newZoom));
+      return { ...prev, zoom: clampedZoom };
+    });
+  };
+
+  const fitToWidth = () => {
+    const viewerWidth = document.getElementById('pdf-viewer')?.clientWidth || 800;
+    const pageWidth = 595; // Standard A4 width in points
+    const newZoom = Math.floor((viewerWidth / pageWidth) * 100);
+    setZoom(newZoom);
+  };
+
+  const fitToPage = () => {
+    const viewerHeight = document.getElementById('pdf-viewer')?.clientHeight || 600;
+    const pageHeight = 842; // Standard A4 height in points
+    const newZoom = Math.floor((viewerHeight / pageHeight) * 100);
+    setZoom(newZoom);
+  };
+
+  const rotatePage = (degreesValue: number) => {
+    setState(prev => ({
+      ...prev,
+      rotation: (prev.rotation + degreesValue + 360) % 360,
+      hasChanges: true
+    }));
+  };
+
+  const toggleTheme = () => {
+    const newTheme = !state.isDarkMode;
+    setState(prev => ({ ...prev, isDarkMode: newTheme }));
+    const themeString = newTheme ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', themeString);
+    
+    // Save preference if available
+    if (window.electronAPI?.setPreferences) {
+      window.electronAPI.setPreferences({ theme: themeString });
+    }
+  };
+
+  const changePage = (newPage: number) => {
+    if (newPage >= 1 && newPage <= state.totalPages) {
+      setState(prev => ({ ...prev, currentPage: newPage }));
+    }
+  };
+
+  const insertPage = async () => {
+    if (!state.currentPDFBytes) return;
+    
+    try {
+      const pdfDoc = await PDFDocument.load(state.currentPDFBytes);
+      const page = pdfDoc.insertPage(state.currentPage);
+      
+      // Add some default content to the new page
+      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      page.drawText('New Page', {
+        x: 50,
+        y: page.getHeight() - 50,
+        size: 12,
+        font,
+        color: rgb(0.5, 0.5, 0.5)
+      });
+      
+      const pdfBytes = await pdfDoc.save();
+      const uint8Array = new Uint8Array(pdfBytes);
+      
+      // Reload the PDF
+      const loadingTask = pdfjsLib.getDocument(uint8Array);
+      const pdf = await loadingTask.promise;
+      
+      setState(prev => ({
+        ...prev,
+        currentPDF: pdf,
+        currentPDFBytes: uint8Array,
+        totalPages: pdf.numPages,
+        hasChanges: true
+      }));
+      
+      toast.success('Page inserted successfully');
+    } catch (error) {
+      console.error('Error inserting page:', error);
+      toast.error('Failed to insert page');
+    }
+  };
+
+  const deletePage = async () => {
+    if (!state.currentPDFBytes || state.totalPages <= 1) {
+      toast.warning('Cannot delete the only page');
+      return;
+    }
+    
+    try {
+      const pdfDoc = await PDFDocument.load(state.currentPDFBytes);
+      pdfDoc.removePage(state.currentPage - 1);
+      
+      const pdfBytes = await pdfDoc.save();
+      const uint8Array = new Uint8Array(pdfBytes);
+      
+      // Reload the PDF
+      const loadingTask = pdfjsLib.getDocument(uint8Array);
+      const pdf = await loadingTask.promise;
+      
+      setState(prev => ({
+        ...prev,
+        currentPDF: pdf,
+        currentPDFBytes: uint8Array,
+        totalPages: pdf.numPages,
+        currentPage: Math.min(prev.currentPage, pdf.numPages),
+        hasChanges: true
+      }));
+      
+      toast.success('Page deleted successfully');
+    } catch (error) {
+      console.error('Error deleting page:', error);
+      toast.error('Failed to delete page');
+    }
+  };
+
+  const mergePDFs = async () => {
+    try {
+      if (!window.electronAPI?.openFile) {
+        toast.error('File selection not available');
+        return;
+      }
+
+      // Select additional PDFs to merge
+      const result = await window.electronAPI.openFile();
+      if (!result || !state.currentPDFBytes) return;
+
+      setState(prev => ({ ...prev, isLoading: true }));
+
+      const mainPDF = await PDFDocument.load(state.currentPDFBytes);
+      const additionalPDF = await PDFDocument.load(result.data);
+
+      // Copy all pages from additional PDF to main PDF
+      const pages = await mainPDF.copyPages(additionalPDF, additionalPDF.getPageIndices());
+      pages.forEach(page => mainPDF.addPage(page));
+
+      const pdfBytes = await mainPDF.save();
+      const uint8Array = new Uint8Array(pdfBytes);
+
+      // Reload the merged PDF
+      const loadingTask = pdfjsLib.getDocument(uint8Array);
+      const pdf = await loadingTask.promise;
+
+      setState(prev => ({
+        ...prev,
+        currentPDF: pdf,
+        currentPDFBytes: uint8Array,
+        totalPages: pdf.numPages,
+        hasChanges: true,
+        isLoading: false
+      }));
+
+      toast.success('PDFs merged successfully');
+    } catch (error) {
+      console.error('Error merging PDFs:', error);
+      toast.error('Failed to merge PDFs');
+      setState(prev => ({ ...prev, isLoading: false }));
+    }
+  };
+
+  const splitPDF = async () => {
+    if (!state.currentPDFBytes) {
+      toast.warning('No PDF to split');
+      return;
+    }
+
+    try {
+      const pageNumber = prompt(`Split after page (1-${state.totalPages - 1}):`);
+      if (!pageNumber) return;
+
+      const splitAt = parseInt(pageNumber);
+      if (isNaN(splitAt) || splitAt < 1 || splitAt >= state.totalPages) {
+        toast.error('Invalid page number');
+        return;
+      }
+
+      setState(prev => ({ ...prev, isLoading: true }));
+
+      const originalPDF = await PDFDocument.load(state.currentPDFBytes);
+
+      // Create first part
+      const firstPartPDF = await PDFDocument.create();
+      const firstPartPages = await firstPartPDF.copyPages(originalPDF, Array.from({length: splitAt}, (_, i) => i));
+      firstPartPages.forEach(page => firstPartPDF.addPage(page));
+
+      // Create second part  
+      const secondPartPDF = await PDFDocument.create();
+      const secondPartPages = await secondPartPDF.copyPages(originalPDF, Array.from({length: state.totalPages - splitAt}, (_, i) => i + splitAt));
+      secondPartPages.forEach(page => secondPartPDF.addPage(page));
+
+      // Save both parts
+      const firstPartBytes = await firstPartPDF.save();
+      const secondPartBytes = await secondPartPDF.save();
+
+      // Save first part
+      if (window.electronAPI?.saveFileDialog && window.electronAPI?.saveFile) {
+        const firstFilePath = await window.electronAPI.saveFileDialog(`${state.fileName.replace('.pdf', '')}_part1.pdf`);
+        if (firstFilePath) {
+          await window.electronAPI.saveFile(firstFilePath, toArrayBuffer(firstPartBytes));
+        }
+
+        // Save second part
+        const secondFilePath = await window.electronAPI.saveFileDialog(`${state.fileName.replace('.pdf', '')}_part2.pdf`);
+        if (secondFilePath) {
+          await window.electronAPI.saveFile(secondFilePath, toArrayBuffer(secondPartBytes));
+        }
+
+        toast.success('PDF split successfully');
+      }
+
+      setState(prev => ({ ...prev, isLoading: false }));
+    } catch (error) {
+      console.error('Error splitting PDF:', error);
+      toast.error('Failed to split PDF');
+      setState(prev => ({ ...prev, isLoading: false }));
+    }
+  };
+
+  const compressPDF = async () => {
+    if (!state.currentPDFBytes) {
+      toast.warning('No PDF to compress');
+      return;
+    }
+
+    try {
+      setState(prev => ({ ...prev, isLoading: true }));
+
+      // Basic compression by removing unnecessary data
+      const pdfDoc = await PDFDocument.load(state.currentPDFBytes);
+      
+      // Set compression options
+      const pdfBytes = await pdfDoc.save({
+        useObjectStreams: false,
+        addDefaultPage: false,
+        objectsPerTick: 50
+      });
+
+      const compressionRatio = ((state.currentPDFBytes.length - pdfBytes.length) / state.currentPDFBytes.length * 100);
+      
+      if (compressionRatio > 0) {
+        const uint8Array = new Uint8Array(pdfBytes);
+        
+        // Reload compressed PDF
+        const loadingTask = pdfjsLib.getDocument(uint8Array);
+        const pdf = await loadingTask.promise;
+
+        setState(prev => ({
+          ...prev,
+          currentPDF: pdf,
+          currentPDFBytes: uint8Array,
+          hasChanges: true,
+          isLoading: false
+        }));
+
+        toast.success(`PDF compressed by ${compressionRatio.toFixed(1)}%`);
+      } else {
+        setState(prev => ({ ...prev, isLoading: false }));
+        toast.info('PDF is already optimally compressed');
+      }
+    } catch (error) {
+      console.error('Error compressing PDF:', error);
+      toast.error('Failed to compress PDF');
+      setState(prev => ({ ...prev, isLoading: false }));
+    }
+  };
+
+  const performOCR = async () => {
+    if (!state.currentPDF) {
+      toast.warning('No PDF loaded for OCR');
+      return;
+    }
+
+    try {
+      setState(prev => ({ ...prev, isLoading: true }));
+      
+      // Initialize OCR service
+      await ocrService.current.initialize();
+      
+      const ocrResults = await ocrService.current.performOCR(state.currentPDF, state.currentPage);
+      
+      if (ocrResults && ocrResults.text) {
+        // Create searchable PDF by adding text layer
+        const searchableText = ocrResults.text;
+        
+        // Add OCR result as annotation for now (could be enhanced to create actual text layer)
+        const annotation = {
+          type: 'ocr-text',
+          text: searchableText,
+          x: 10,
+          y: 50,
+          pageIndex: state.currentPage - 1,
+          fontSize: 10,
+          isOCR: true
+        };
+        
+        setState(prev => ({
+          ...prev,
+          annotations: [...prev.annotations, annotation],
+          hasChanges: true,
+          isLoading: false
+        }));
+        
+        toast.success(`OCR completed. Extracted ${searchableText.length} characters`);
+      } else {
+        setState(prev => ({ ...prev, isLoading: false }));
+        toast.info('No text found in current page');
+      }
+    } catch (error) {
+      console.error('OCR error:', error);
+      toast.error('OCR processing failed');
+      setState(prev => ({ ...prev, isLoading: false }));
+    }
+  };
+
+  const encryptPDF = async () => {
+    if (!state.currentPDFBytes) {
+      toast.warning('No PDF to encrypt');
+      return;
+    }
+
+    try {
+      const password = prompt('Enter password for encryption:');
+      if (!password) return;
+
+      setState(prev => ({ ...prev, isLoading: true }));
+
+      const result = await securityService.current.encryptPDF(state.currentPDFBytes, password);
+      
+      if (result.success && result.data) {
+        const uint8Array = new Uint8Array(result.data);
+        
+        // Reload encrypted PDF
+        const loadingTask = pdfjsLib.getDocument(uint8Array);
+        const pdf = await loadingTask.promise;
+
+        setState(prev => ({
+          ...prev,
+          currentPDF: pdf,
+          currentPDFBytes: uint8Array,
+          hasChanges: true,
+          isLoading: false
+        }));
+
+        toast.success('PDF encrypted successfully');
+      } else {
+        setState(prev => ({ ...prev, isLoading: false }));
+        toast.error('Failed to encrypt PDF');
+      }
+    } catch (error) {
+      console.error('Encryption error:', error);
+      toast.error('Failed to encrypt PDF');
+      setState(prev => ({ ...prev, isLoading: false }));
+    }
+  };
+
+  const decryptPDF = async () => {
+    if (!state.currentPDFBytes) {
+      toast.warning('No PDF to decrypt');
+      return;
+    }
+
+    try {
+      const password = prompt('Enter password for decryption:');
+      if (!password) return;
+
+      setState(prev => ({ ...prev, isLoading: true }));
+
+      const result = await securityService.current.decryptPDF(state.currentPDFBytes, password);
+      
+      if (result.success && result.data) {
+        const uint8Array = new Uint8Array(result.data);
+        
+        // Reload decrypted PDF
+        const loadingTask = pdfjsLib.getDocument(uint8Array);
+        const pdf = await loadingTask.promise;
+
+        setState(prev => ({
+          ...prev,
+          currentPDF: pdf,
+          currentPDFBytes: uint8Array,
+          hasChanges: true,
+          isLoading: false
+        }));
+
+        toast.success('PDF decrypted successfully');
+      } else {
+        setState(prev => ({ ...prev, isLoading: false }));
+        toast.error('Failed to decrypt PDF - check password');
+      }
+    } catch (error) {
+      console.error('Decryption error:', error);
+      toast.error('Failed to decrypt PDF');
+      setState(prev => ({ ...prev, isLoading: false }));
+    }
+  };
+
+  const addDigitalSignature = async () => {
+    if (!state.currentPDFBytes) {
+      toast.warning('No PDF to sign');
+      return;
+    }
+
+    try {
+      const signerName = prompt('Enter signer name:') || 'Digital Signer';
+      const reason = prompt('Enter reason for signing:') || 'Document approval';
+      const location = prompt('Enter location:') || 'Digital';
+
+      setState(prev => ({ ...prev, isLoading: true }));
+
+      const result = await securityService.current.addDigitalSignature(state.currentPDFBytes, {
+        name: signerName,
+        reason,
+        location,
+        contactInfo: '',
+        date: new Date()
+      });
+
+      if (result.success && result.data) {
+        const uint8Array = new Uint8Array(result.data);
+        
+        // Reload signed PDF
+        const loadingTask = pdfjsLib.getDocument(uint8Array);
+        const pdf = await loadingTask.promise;
+
+        setState(prev => ({
+          ...prev,
+          currentPDF: pdf,
+          currentPDFBytes: uint8Array,
+          hasChanges: true,
+          isLoading: false
+        }));
+
+        toast.success('Digital signature added successfully');
+      } else {
+        setState(prev => ({ ...prev, isLoading: false }));
+        toast.error('Failed to add digital signature');
+      }
+    } catch (error) {
+      console.error('Digital signature error:', error);
+      toast.error('Failed to add digital signature');
+      setState(prev => ({ ...prev, isLoading: false }));
+    }
+  };
+
+  const addRedaction = async (redactionData: any) => {
+    if (!state.currentPDFBytes) {
+      toast.warning('No PDF to redact');
+      return;
+    }
+
+    try {
+      setState(prev => ({ ...prev, isLoading: true }));
+
+      // Create a new PDF document
+      const pdfDoc = await PDFDocument.load(state.currentPDFBytes);
+      const page = pdfDoc.getPage(redactionData.pageIndex);
+      
+      // Add a black rectangle to cover the content
+      page.drawRectangle({
+        x: redactionData.x,
+        y: redactionData.y,
+        width: redactionData.width,
+        height: redactionData.height,
+        color: rgb(0, 0, 0),
+        opacity: 1
+      });
+
+      // Save the modified PDF
+      const pdfBytes = await pdfDoc.save();
+      const uint8Array = new Uint8Array(pdfBytes);
+
+      // Reload the redacted PDF
+      const loadingTask = pdfjsLib.getDocument(uint8Array);
+      const pdf = await loadingTask.promise;
+
+      setState(prev => ({
+        ...prev,
+        currentPDF: pdf,
+        currentPDFBytes: uint8Array,
+        hasChanges: true,
+        isLoading: false,
+        annotations: [...prev.annotations, {
+          ...redactionData,
+          type: 'redaction',
+          color: { r: 0, g: 0, b: 0 }
+        }]
+      }));
+
+      toast.success('Content redacted successfully');
+    } catch (error) {
+      console.error('Redaction error:', error);
+      toast.error('Failed to redact content');
+      setState(prev => ({ ...prev, isLoading: false }));
+    }
+  };
+
+  const addWatermark = async (watermarkText: string, options: any) => {
+    if (!state.currentPDFBytes) {
+      toast.warning('No PDF to watermark');
+      return;
+    }
+
+    try {
+      setState(prev => ({ ...prev, isLoading: true }));
+
+      // Create a new PDF document
+      const pdfDoc = await PDFDocument.load(state.currentPDFBytes);
+      
+      // Embed a standard font
+      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      
+      // Add watermark to all pages
+      for (let i = 0; i < pdfDoc.getPageCount(); i++) {
+        const page = pdfDoc.getPage(i);
+        const { width, height } = page.getSize();
+        
+        page.drawText(watermarkText, {
+          x: width / 2 - 100,
+          y: height / 2,
+          size: 48,
+          font: font,
+          color: rgb(0.8, 0.8, 0.8),
+          opacity: 0.5,
+          rotate: degrees(45)
+        });
+      }
+
+      // Save the modified PDF
+      const pdfBytes = await pdfDoc.save();
+      const uint8Array = new Uint8Array(pdfBytes);
+
+      // Reload the watermarked PDF
+      const loadingTask = pdfjsLib.getDocument(uint8Array);
+      const pdf = await loadingTask.promise;
+
+      setState(prev => ({
+        ...prev,
+        currentPDF: pdf,
+        currentPDFBytes: uint8Array,
+        hasChanges: true,
+        isLoading: false,
+        showWatermarkDialog: false
+      }));
+
+      toast.success('Watermark added successfully');
+    } catch (error) {
+      console.error('Watermark error:', error);
+      toast.error('Failed to add watermark');
+      setState(prev => ({ ...prev, isLoading: false }));
+    }
+  };
+
+  const addBookmark = (title: string, page: number) => {
+    const newBookmark = {
+      id: Date.now(),
+      title,
+      page,
+      createdAt: new Date().toISOString()
+    };
+
+    setState(prev => ({
+      ...prev,
+      bookmarks: [...prev.bookmarks, newBookmark],
+      showBookmarks: true
+    }));
+
+    toast.success('Bookmark added successfully');
+  };
+
+  const exportPDF = async (format: string) => {
+    if (!state.currentPDFBytes) {
+      toast.warning('No PDF to export');
+      return;
+    }
+
+    try {
+      setState(prev => ({ ...prev, isLoading: true }));
+
+      switch (format) {
+        case 'text':
+          // Extract text from PDF
+          const textContent = await extractAllText();
+          const blob = new Blob([textContent], { type: 'text/plain' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${state.fileName.replace('.pdf', '')}.txt`;
+          a.click();
+          URL.revokeObjectURL(url);
+          break;
+
+        case 'images':
+          // Export each page as image (simplified implementation)
+          toast.info('Exporting as images is not yet implemented');
+          break;
+
+        case 'word':
+          // Export as Word document (simplified implementation)
+          toast.info('Exporting as Word document is not yet implemented');
+          break;
+
+        default:
+          toast.warning('Unsupported export format');
+      }
+
+      setState(prev => ({ ...prev, isLoading: false, showExportOptions: false }));
+      toast.success(`Exported as ${format.toUpperCase()} successfully`);
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export PDF');
+      setState(prev => ({ ...prev, isLoading: false }));
+    }
+  };
+
+  const extractAllText = async (): Promise<string> => {\n    if (!state.currentPDF) return '';\n    \n    try {\n      let fullText = '';\n      for (let i = 1; i <= state.currentPDF.numPages; i++) {\n        const page = await state.currentPDF.getPage(i);\n        const textContent = await page.getTextContent();\n        const pageText = textContent.items\n          .map((item: any) => item.str)\n          .join(' ');\n        fullText += \"Page \" + i + \"\\n\" + pageText + \"\\n\\n\";\n      }\n      return fullText;\n    } catch (error) {\n      console.error('Text extraction error:', error);\n      return '';\n    }\n  };
+
+  const handleFormUpdate = (formFields: any[]) => {
+    setState(prev => ({ ...prev, formFields }));
+  };
+
+  const handleFormSave = async (pdfWithForms: Uint8Array) => {
+    try {
+      // Reload the PDF with forms
+      const loadingTask = pdfjsLib.getDocument(pdfWithForms);
+      const pdf = await loadingTask.promise;
+
+      setState(prev => ({
+        ...prev,
+        currentPDF: pdf,
+        currentPDFBytes: pdfWithForms,
+        hasChanges: true
+      }));
+
+      toast.success('Forms integrated into PDF');
+    } catch (error) {
+      console.error('Error loading PDF with forms:', error);
+      toast.error('Failed to integrate forms');
+    }
+  };
+
+  const handleToolChange = (tool: string) => {
+    console.log('🔧 Tool changed to:', tool);
+    
+    // Toggle edit mode for edit tool
+    if (tool === 'edit') {
+      setState(prev => ({ 
+        ...prev, 
+        currentTool: tool,
+        isEditMode: !prev.isEditMode 
+      }));
+      console.log('🔧 PDF Edit Mode:', state.isEditMode ? 'DEACTIVATED' : 'ACTIVATED');
+    } 
+    // Handle redaction tool
+    else if (tool === 'redact') {
+      setState(prev => ({ 
+        ...prev, 
+        currentTool: tool,
+        showRedactionTool: true
+      }));
+    }
+    // Handle watermark tool
+    else if (tool === 'watermark') {
+      setState(prev => ({ 
+        ...prev, 
+        currentTool: tool,
+        showWatermarkDialog: true
+      }));
+    }
+    else {
+      setState(prev => ({ 
+        ...prev, 
+        currentTool: tool,
+        isEditMode: false,
+        showRedactionTool: false
+      }));
+    }
+  };
+
+  const toggleEditMode = () => {
+    setState(prev => ({ 
+      ...prev, 
+      isEditMode: !prev.isEditMode,
+      currentTool: prev.isEditMode ? 'select' : 'edit'
+    }));
+  };
+  };
+
+  const showInputDialog = (title: string, placeholder: string, onConfirm: (value: string) => void) => {
+    setState(prev => ({
+      ...prev,
+      showInputDialog: true,
+      inputDialogConfig: { title, placeholder, onConfirm }
+    }));
+  };
+
+  const hideInputDialog = () => {
+    setState(prev => ({
+      ...prev,
+      showInputDialog: false,
+      inputDialogConfig: null
+    }));
+  };
+
+  const handlePDFUpdate = async (newPdfBytes: Uint8Array) => {
+    try {
+      console.log('🔄 Updating PDF with edited content...');
+      
+      // Load updated PDF
+      const pdf = await pdfService.current.loadPDF(newPdfBytes);
+      
+      setState(prev => ({
+        ...prev,
+        currentPDF: pdf,
+        currentPDFBytes: newPdfBytes,
+        hasChanges: true
+      }));
+      
+      console.log('✅ PDF updated successfully');
+    } catch (error) {
+      console.error('❌ Failed to update PDF:', error);
+      toast.error('Failed to update PDF with edits');
+    }
+  };
+
+  const handleAnnotationAdd = (annotation: any) => {
+    console.log('Adding annotation:', annotation);
+    const annotationWithId = {
+      ...annotation,
+      id: Date.now() + Math.random(), // Simple unique ID
+      timestamp: new Date().toISOString()
+    };
+    setState(prev => {
+      const newAnnotations = [...prev.annotations, annotationWithId];
+      console.log('New annotations array:', newAnnotations);
+      return {
+        ...prev,
+        annotations: newAnnotations,
+        hasChanges: true
+      };
+    });
+  };
+
+  const handleSearch = async (text: string, options: SearchOptions) => {
+    if (!state.currentPDF) {
+      toast.warning('No PDF loaded');
+      return;
+    }
+    
+    setState(prev => ({ ...prev, searchText: text, isSearching: true }));
+    
+    try {
+      await searchService.initialize(state.currentPDF);
+      const results = await searchService.search(text, options);
+      
+      setState(prev => ({
+        ...prev,
+        searchResults: results,
+        currentSearchIndex: results.length > 0 ? 0 : -1,
+        isSearching: false
+      }));
+      
+      if (results.length > 0) {
+        handleNavigateToResult(results[0]);
+        toast.success(`Found ${results.length} results`);
+      } else {
+        toast.info('No results found');
+      }
+    } catch (error) {
+      console.error('Search error:', error);
+      toast.error('Search failed');
+      setState(prev => ({ ...prev, isSearching: false }));
+    }
+  };
+  
+  const handleNavigateToResult = (result: SearchResult) => {
+    if (result.page !== state.currentPage) {
+      changePage(result.page);
+    }
+    
+    const index = state.searchResults.findIndex(r => r.index === result.index);
+    if (index !== -1) {
+      setState(prev => ({ ...prev, currentSearchIndex: index }));
+    }
+  };
+  
+  const handleNextSearchResult = () => {
+    const result = searchService.getNextResult();
+    if (result) {
+      handleNavigateToResult(result);
+      const stats = searchService.getSearchStats();
+      setState(prev => ({ ...prev, currentSearchIndex: stats.current - 1 }));
+    }
+  };
+  
+  const handlePreviousSearchResult = () => {
+    const result = searchService.getPreviousResult();
+    if (result) {
+      handleNavigateToResult(result);
+      const stats = searchService.getSearchStats();
+      setState(prev => ({ ...prev, currentSearchIndex: stats.current - 1 }));
+    }
+  };
+
+  {return (
+    <div className={`adobe-app ${state.isDarkMode ? 'dark' : 'light'} ${state.isFullscreen ? 'fullscreen' : ''}`}>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf"
+        style={{ display: 'none' }}
+        onChange={handleFileInputChange}
+      />
+      
+      <div className="adobe-header">
+        <Toolbar
+          currentTool={state.currentTool}
+          onToolChange={handleToolChange}
+          zoom={state.zoom}
+          onZoomChange={setZoom}
+          onOpenFile={openPDF}
+          onSaveFile={() => savePDF(false)}
+          onPrint={printPDF}
+          hasDocument={!!state.currentPDF}
+        />
+      </div>
+      
+      <div className="adobe-workspace">
+        <div className="adobe-sidebar">
+          <Sidebar
+            onToggleThumbnails={() => setState(prev => ({ ...prev, showThumbnails: !prev.showThumbnails }))}
+            onToggleProperties={() => setState(prev => ({ ...prev, showProperties: !prev.showProperties }))}
+            onToggleSearch={() => setState(prev => ({ ...prev, showSearch: !prev.showSearch }))}
+            showThumbnails={state.showThumbnails}
+            showProperties={state.showProperties}
+            showSearch={state.showSearch}
+          />
+          
+          {state.showThumbnails && state.currentPDF && (
+            <ThumbnailPanel
+              pdf={state.currentPDF}
+              currentPage={state.currentPage}
+              onPageSelect={changePage}
+            />
+          )}
+        </div>
+        
+        <div className="adobe-content">
+          {state.showSearch && (
+            <SearchPanel
+              onSearch={handleSearch}
+              searchResults={state.searchResults}
+              currentResultIndex={state.currentSearchIndex}
+              onClose={() => setState(prev => ({ ...prev, showSearch: false }))}
+              onNavigateToResult={handleNavigateToResult}
+              onNextResult={handleNextSearchResult}
+              onPreviousResult={handlePreviousSearchResult}
+              isSearching={state.isSearching}
+            />
+          )}
+          
+          <div className="adobe-viewer-container">
+            {state.currentPDF ? (
+              <div className="pdf-viewer-wrapper" style={{ position: 'relative', width: '100%', height: '100%' }}>
+                <PDFViewer
+                  pdf={state.currentPDF}
+                  currentPage={state.currentPage}
+                  zoom={state.zoom}
+                  rotation={state.rotation}
+                  currentTool={state.currentTool}
+                  onPageChange={changePage}
+                  onAnnotationAdd={handleAnnotationAdd}
+                  annotations={state.annotations}
+                  showInputDialog={showInputDialog}
+                  isEditMode={state.isEditMode}
+                  extractedText={extractedText}
+                  onPDFUpdate={handlePDFUpdate}
+                />
+                
+                {/* Simple Edit Mode Indicator */}
+                {state.isEditMode && (
+                  <div style={{
+                    position: 'fixed',
+                    top: '80px',
+                    right: '20px',
+                    background: '#007bff',
+                    color: 'white',
+                    padding: '8px 12px',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    zIndex: 1000
+                  }}>
+                    ✏️ Edit Mode Active - Click any text to edit it
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="adobe-welcome">
+                <div className="adobe-welcome-content">
+                  <svg className="adobe-logo" viewBox="0 0 100 100" width="120" height="120">
+                    <rect x="20" y="10" width="60" height="80" rx="5" fill="currentColor" opacity="0.1"/>
+                    <rect x="25" y="20" width="50" height="2" fill="currentColor" opacity="0.3"/>
+                    <rect x="25" y="30" width="40" height="2" fill="currentColor" opacity="0.3"/>
+                    <rect x="25" y="40" width="45" height="2" fill="currentColor" opacity="0.3"/>
+                    <rect x="25" y="50" width="35" height="2" fill="currentColor" opacity="0.3"/>
+                    <rect x="25" y="60" width="50" height="2" fill="currentColor" opacity="0.3"/>
+                    <rect x="25" y="70" width="30" height="2" fill="currentColor" opacity="0.3"/>
+                    <circle cx="65" cy="75" r="12" fill="#FF0000" opacity="0.8"/>
+                    <path d="M60 75 L70 75 M65 70 L65 80" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                  <h1 className="adobe-welcome-title">Professional PDF Editor</h1>
+                  <p className="adobe-welcome-subtitle">Adobe-grade PDF editing at your fingertips</p>
+                  <div className="adobe-welcome-actions">
+                    <button className="adobe-btn adobe-btn-primary" onClick={openPDF}>
+                      <i className="fas fa-folder-open"></i>
+                      Open PDF
+                    </button>
+                    <button className="adobe-btn adobe-btn-secondary" onClick={() => toast.info('Create PDF feature coming soon')}>
+                      <i className="fas fa-plus"></i>
+                      Create PDF
+                    </button>
+                  </div>
+                  <div className="adobe-welcome-features">
+                    <div className="adobe-feature">
+                      <i className="fas fa-edit"></i>
+                      <span>Edit Text & Images</span>
+                    </div>
+                    <div className="adobe-feature">
+                      <i className="fas fa-file-signature"></i>
+                      <span>Sign & Fill Forms</span>
+                    </div>
+                    <div className="adobe-feature">
+                      <i className="fas fa-shield-alt"></i>
+                      <span>Secure Documents</span>
+                    </div>
+                    <div className="adobe-feature">
+                      <i className="fas fa-search"></i>
+                      <span>Advanced Search</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {state.showProperties && state.currentPDF && (
+          <div className="adobe-properties-panel">
+            <PropertiesPanel
+              pdf={state.currentPDF}
+              fileName={state.fileName}
+              fileSize={state.currentPDFBytes?.length || 0}
+            />
+          </div>
+        )}
+        
+        {state.showBookmarks && state.currentPDF && (
+          <div className="adobe-bookmarks-panel">
+            <BookmarksPanel
+              bookmarks={state.bookmarks}
+              currentPage={state.currentPage}
+              onNavigate={changePage}
+              onAddBookmark={addBookmark}
+              onClose={() => setState(prev => ({ ...prev, showBookmarks: false }))}
+            />
+          </div>
+        )}
+      </div>
+      
+      {state.showFormEditor && (
+        <div className="form-editor-overlay">
+          <FormEditor
+            pdfBytes={state.currentPDFBytes || undefined}
+            currentPage={state.currentPage}
+            zoom={state.zoom}
+            onFormUpdate={handleFormUpdate}
+            onFormSave={handleFormSave}
+            onClose={() => setState(prev => ({ ...prev, showFormEditor: false }))}
+          />
+        </div>
+      )}
+      
+      {state.currentTool !== 'select' && state.currentTool !== 'redact' && (
+        <AnnotationTools
+          tool={state.currentTool}
+          onAnnotationAdd={handleAnnotationAdd}
+        />
+      )}
+      
+      {state.showRedactionTool && state.currentPDF && (
+        <RedactionTool
+          onRedact={addRedaction}
+          onCancel={() => setState(prev => ({ ...prev, showRedactionTool: false, currentTool: 'select' }))}
+          currentPage={state.currentPage}
+        />
+      )}
+      
+      {state.showWatermarkDialog && (
+        <WatermarkDialog
+          onAdd={addWatermark}
+          onCancel={() => setState(prev => ({ ...prev, showWatermarkDialog: false }))}
+        />
+      )}
+      
+      {state.showExportOptions && (
+        <ExportDialog
+          onExport={exportPDF}
+          onCancel={() => setState(prev => ({ ...prev, showExportOptions: false }))}
+        />
+      )}
+      
+      <div className="adobe-footer">
+        <StatusBar
+          currentPage={state.currentPage}
+          totalPages={state.totalPages}
+          zoom={state.zoom}
+          hasChanges={state.hasChanges}
+          fileName={state.fileName}
+        />
+      </div>
+      
+      {state.isLoading && (
+        <div className="adobe-loading-overlay">
+          <div className="adobe-spinner">
+            <div className="adobe-spinner-blade"></div>
+            <div className="adobe-spinner-blade"></div>
+            <div className="adobe-spinner-blade"></div>
+            <div className="adobe-spinner-blade"></div>
+            <div className="adobe-spinner-blade"></div>
+            <div className="adobe-spinner-blade"></div>
+            <div className="adobe-spinner-blade"></div>
+            <div className="adobe-spinner-blade"></div>
+          </div>
+          <p className="adobe-loading-text">Processing...</p>
+        </div>
+      )}
+      
+      <ToastContainer
+        position="bottom-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme={state.isDarkMode ? 'dark' : 'light'}
+        className="adobe-toast"
+      />
+      
+      {state.showInputDialog && state.inputDialogConfig && (
+        <InputDialog
+          isOpen={state.showInputDialog}
+          title={state.inputDialogConfig.title}
+          placeholder={state.inputDialogConfig.placeholder}
+          onConfirm={(value) => {
+            state.inputDialogConfig?.onConfirm(value);
+            hideInputDialog();
+          }}
+          onCancel={hideInputDialog}
+        />
+      )}
+    </div>
+  );
+};
+
+export default App;

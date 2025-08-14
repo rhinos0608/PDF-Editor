@@ -1,7 +1,8 @@
 .thumbnail-panel {
-  width: 200px;
+  width: 100%; /* Take full width of parent (adobe-sidebar) */
+  height: 100%; /* Take full height of parent */
   background-color: var(--bg-primary);
-  border-right: 1px solid var(--border-color);
+  border-right: 1px solid var(--border-color); /* This border will be handled by adobe-sidebar now */
   display: flex;
   flex-direction: column;
   overflow: hidden;
