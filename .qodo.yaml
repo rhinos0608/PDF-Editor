@@ -1,0 +1,200 @@
+# Qodo Configuration for Professional PDF Editor
+# This file configures Qodo's AI-powered code review and analysis tools
+
+# Project Information
+project:
+  name: "professional-pdf-editor"
+  description: "Professional PDF Editor with comprehensive features"
+  language: "typescript"
+  framework: "electron"
+
+# Code Review Settings
+review:
+  # Enable automatic code review on pull requests
+  auto_review: true
+  
+  # Review scope - what to include in reviews
+  include_patterns:
+    - "src/**/*.ts"
+    - "src/**/*.tsx"
+    - "src/**/*.js"
+    - "src/**/*.jsx"
+    - "tests/**/*.ts"
+    - "tests/**/*.js"
+    - "__tests__/**/*.ts"
+    - "__tests__/**/*.js"
+  
+  # Exclude patterns - what to skip in reviews
+  exclude_patterns:
+    - "node_modules/**"
+    - "dist/**"
+    - "build/**"
+    - "coverage/**"
+    - ".git/**"
+    - "*.min.js"
+    - "*.bundle.js"
+    - ".jest-cache/**"
+    - "archive/**"
+    - "logs/**"
+  
+  # Review focus areas
+  focus_areas:
+    - "security"
+    - "performance"
+    - "maintainability"
+    - "best_practices"
+    - "type_safety"
+    - "error_handling"
+  
+  # Severity levels to report
+  severity_levels:
+    - "high"
+    - "medium"
+    - "low"
+
+# Testing Configuration
+testing:
+  # Test framework
+  framework: "jest"
+  
+  # Test patterns
+  test_patterns:
+    - "**/*.test.ts"
+    - "**/*.test.tsx"
+    - "**/*.test.js"
+    - "**/*.spec.ts"
+    - "**/*.spec.tsx"
+    - "**/*.spec.js"
+  
+  # Coverage thresholds
+  coverage:
+    minimum: 70
+    target: 85
+
+# Security Settings
+security:
+  # Enable security scanning
+  enabled: true
+  
+  # Security focus areas for Electron apps
+  electron_security:
+    - "node_integration"
+    - "context_isolation"
+    - "preload_scripts"
+    - "ipc_security"
+    - "csp_headers"
+  
+  # Dependency scanning
+  dependency_scan: true
+  
+  # Vulnerability severity to report
+  vulnerability_levels:
+    - "critical"
+    - "high"
+    - "medium"
+
+# Performance Monitoring
+performance:
+  # Enable performance analysis
+  enabled: true
+  
+  # Performance metrics to track
+  metrics:
+    - "bundle_size"
+    - "memory_usage"
+    - "startup_time"
+    - "render_performance"
+
+# Documentation
+documentation:
+  # Auto-generate documentation
+  auto_generate: true
+  
+  # Documentation formats
+  formats:
+    - "markdown"
+    - "jsdoc"
+  
+  # Include in documentation
+  include:
+    - "api_reference"
+    - "usage_examples"
+    - "architecture_overview"
+
+# Integration Settings
+integrations:
+  # Git integration
+  git:
+    enabled: true
+    hooks:
+      - "pre-commit"
+      - "pre-push"
+  
+  # CI/CD integration
+  ci_cd:
+    enabled: true
+    platforms:
+      - "github_actions"
+  
+  # IDE integration
+  ide:
+    enabled: true
+    editors:
+      - "vscode"
+      - "webstorm"
+
+# Custom Rules (specific to PDF Editor project)
+custom_rules:
+  # Electron-specific rules
+  electron:
+    - "require_context_isolation"
+    - "disable_node_integration_in_renderer"
+    - "validate_preload_scripts"
+  
+  # PDF processing rules
+  pdf_processing:
+    - "validate_pdf_lib_usage"
+    - "check_memory_management"
+    - "verify_file_handling"
+  
+  # React/TypeScript rules
+  react_typescript:
+    - "enforce_prop_types"
+    - "require_error_boundaries"
+    - "validate_hooks_usage"
+
+# Notification Settings
+notifications:
+  # Enable notifications
+  enabled: true
+  
+  # Notification channels
+  channels:
+    - "email"
+    - "slack"
+  
+  # When to notify
+  triggers:
+    - "high_severity_issues"
+    - "security_vulnerabilities"
+    - "build_failures"
+    - "coverage_drops"
+
+# Reporting
+reporting:
+  # Report formats
+  formats:
+    - "html"
+    - "json"
+    - "markdown"
+  
+  # Report frequency
+  frequency: "weekly"
+  
+  # Include in reports
+  include:
+    - "code_quality_metrics"
+    - "security_summary"
+    - "performance_trends"
+    - "test_coverage"
+    - "dependency_updates"

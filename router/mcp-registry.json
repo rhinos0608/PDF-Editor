@@ -1,0 +1,239 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2025-08-14T15:40:00Z",
+  "description": "Complete MCP server registry for PDF Editor agent routing system",
+  "servers": {
+    "ref-tools": {
+      "id": "mcp__ref-tools-ref-tools-mcp",
+      "name": "Reference Documentation Tools",
+      "category": "documentation",
+      "capabilities": ["documentation_search", "url_reading"],
+      "description": "Search documentation and read web content for technical references",
+      "tools": [
+        "ref_search_documentation",
+        "ref_read_url"
+      ],
+      "useCase": "Finding programming documentation, API references, technical guides",
+      "priority": "high",
+      "reliability": "high"
+    },
+    "upstash-context7": {
+      "id": "mcp__upstash-context-7-mcp",
+      "name": "Library Documentation Context",
+      "category": "documentation",
+      "capabilities": ["library_resolution", "api_documentation"],
+      "description": "Resolve library names and fetch up-to-date API documentation",
+      "tools": [
+        "resolve-library-id",
+        "get-library-docs"
+      ],
+      "useCase": "Getting current API documentation for libraries and frameworks",
+      "priority": "high",
+      "reliability": "high"
+    },
+    "exa-search": {
+      "id": "mcp__exa",
+      "name": "Advanced Web Search & Research",
+      "category": "research",
+      "capabilities": ["web_search", "company_research", "url_crawling", "linkedin_search", "deep_research"],
+      "description": "Comprehensive web search and research capabilities using Exa AI",
+      "tools": [
+        "web_search_exa",
+        "company_research_exa", 
+        "crawling_exa",
+        "linkedin_search_exa",
+        "deep_researcher_start",
+        "deep_researcher_check"
+      ],
+      "useCase": "Complex research tasks, competitive analysis, market research",
+      "priority": "high",
+      "reliability": "high"
+    },
+    "task-manager": {
+      "id": "mcp__kazuph-mcp-taskmanager",
+      "name": "Advanced Task Management",
+      "category": "workflow",
+      "capabilities": ["task_planning", "progress_tracking", "approval_workflows"],
+      "description": "Structured task management with approval workflows",
+      "tools": [
+        "request_planning",
+        "get_next_task",
+        "mark_task_done",
+        "approve_task_completion",
+        "approve_request_completion",
+        "open_task_details",
+        "list_requests",
+        "add_tasks_to_request",
+        "update_task",
+        "delete_task"
+      ],
+      "useCase": "Complex multi-step projects requiring approval workflows",
+      "priority": "medium",
+      "reliability": "high"
+    },
+    "multi-agent-debate": {
+      "id": "mcp__albinjal-multi-agent-debate-mcp",
+      "name": "Multi-Agent Debate System",
+      "category": "decision_support", 
+      "capabilities": ["structured_debate", "multi_perspective_analysis"],
+      "description": "Structured debate system with multiple personas for complex decisions",
+      "tools": [
+        "multiagentdebate"
+      ],
+      "useCase": "Complex decision making, evaluating multiple perspectives",
+      "priority": "medium",
+      "reliability": "medium"
+    },
+    "smithery-toolbox": {
+      "id": "mcp__smithery-toolbox",
+      "name": "MCP Server Discovery",
+      "category": "meta",
+      "capabilities": ["server_discovery", "tool_execution"],
+      "description": "Search and execute tools from the MCP registry",
+      "tools": [
+        "search_servers",
+        "use_tool"
+      ],
+      "useCase": "Finding and using additional MCP servers dynamically",
+      "priority": "low",
+      "reliability": "medium"
+    },
+    "desktop-commander": {
+      "id": "mcp__wonderwhy-er-desktop-commander",
+      "name": "Desktop File Operations", 
+      "category": "system",
+      "capabilities": ["file_operations", "process_management", "system_interaction"],
+      "description": "Comprehensive desktop file and system operations",
+      "tools": [
+        "get_config",
+        "set_config_value", 
+        "read_file",
+        "read_multiple_files",
+        "write_file",
+        "create_directory",
+        "list_directory",
+        "move_file",
+        "search_files",
+        "search_code",
+        "get_file_info",
+        "edit_block",
+        "start_process",
+        "read_process_output", 
+        "interact_with_process",
+        "force_terminate",
+        "list_sessions",
+        "list_processes",
+        "kill_process",
+        "get_usage_stats",
+        "give_feedback_to_desktop_commander"
+      ],
+      "useCase": "Local file analysis, system operations, process management",
+      "priority": "high",
+      "reliability": "high"
+    },
+    "mcp-resources": {
+      "id": "ListMcpResourcesTool",
+      "name": "MCP Resource Management",
+      "category": "meta",
+      "capabilities": ["resource_listing", "resource_reading"],
+      "description": "List and read resources from configured MCP servers",
+      "tools": [
+        "ListMcpResourcesTool",
+        "ReadMcpResourceTool"
+      ],
+      "useCase": "Managing and accessing MCP server resources",
+      "priority": "low", 
+      "reliability": "high"
+    },
+    "local-filesystem": {
+      "id": "local-fs",
+      "name": "Local Filesystem Access",
+      "category": "system",
+      "capabilities": ["file_reading", "directory_listing", "file_writing"],
+      "description": "Direct access to local filesystem (configured in .claude/mcp.json)",
+      "tools": ["filesystem_read", "filesystem_write", "filesystem_list"],
+      "useCase": "Direct file system operations within project directory",
+      "priority": "high",
+      "reliability": "high"
+    },
+    "github-integration": {
+      "id": "github-mcp", 
+      "name": "GitHub Integration",
+      "category": "development",
+      "capabilities": ["repository_access", "issue_management", "pull_requests"],
+      "description": "GitHub repository operations and management",
+      "tools": ["github_read", "github_create", "github_search"],
+      "useCase": "Repository management, issue tracking, code review",
+      "priority": "medium",
+      "reliability": "medium"
+    }
+  },
+  "categories": {
+    "documentation": {
+      "description": "Documentation search, API references, technical guides",
+      "servers": ["ref-tools", "upstash-context7"]
+    },
+    "research": {
+      "description": "Web search, competitive analysis, market research",
+      "servers": ["exa-search"]
+    },
+    "workflow": {
+      "description": "Task management, project planning, approval workflows", 
+      "servers": ["task-manager"]
+    },
+    "decision_support": {
+      "description": "Multi-perspective analysis, structured decision making",
+      "servers": ["multi-agent-debate"]
+    },
+    "system": {
+      "description": "File operations, system interaction, process management",
+      "servers": ["desktop-commander", "local-filesystem"]
+    },
+    "development": {
+      "description": "Code management, version control, collaboration",
+      "servers": ["github-integration"]
+    },
+    "meta": {
+      "description": "MCP server management and discovery",
+      "servers": ["smithery-toolbox", "mcp-resources"]
+    }
+  },
+  "routingRules": {
+    "fileOperations": {
+      "conditions": ["file analysis", "local file", "csv", "json", "data processing"],
+      "primaryServer": "desktop-commander",
+      "fallback": "local-filesystem",
+      "description": "Route file analysis and data processing to Desktop Commander"
+    },
+    "documentation": {
+      "conditions": ["documentation", "API reference", "how to", "library docs"],
+      "primaryServer": "upstash-context7",
+      "fallback": "ref-tools",
+      "description": "Route documentation queries to library context first"
+    },
+    "research": {
+      "conditions": ["research", "search", "company", "market analysis", "competitive"],
+      "primaryServer": "exa-search",
+      "fallback": null,
+      "description": "Route research tasks to Exa search capabilities"
+    },
+    "projectManagement": {
+      "conditions": ["task", "project", "workflow", "planning", "approval"],
+      "primaryServer": "task-manager", 
+      "fallback": null,
+      "description": "Route complex project management to task manager"
+    },
+    "decisionMaking": {
+      "conditions": ["decision", "debate", "pros and cons", "evaluate", "compare"],
+      "primaryServer": "multi-agent-debate",
+      "fallback": null,
+      "description": "Route complex decisions to debate system"
+    },
+    "mcpDiscovery": {
+      "conditions": ["find server", "MCP", "new tool", "capability"],
+      "primaryServer": "smithery-toolbox",
+      "fallback": "mcp-resources",
+      "description": "Route MCP discovery requests to toolbox"
+    }
+  }
+}

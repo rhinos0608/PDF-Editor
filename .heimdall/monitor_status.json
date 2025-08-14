@@ -1,0 +1,49 @@
+{
+  "service": {
+    "started_at": 1755141536.92722,
+    "pid": 27556,
+    "is_running": true,
+    "uptime_seconds": 0.5038561820983887
+  },
+  "monitoring": {
+    "files_monitored": 7,
+    "target_paths": [
+      "C:\\Users\\Admin\\Documents\\RST\\PDF Editor\\.heimdall\\docs"
+    ]
+  },
+  "processing": {
+    "event_queue_size": 13,
+    "files_processed": 0,
+    "last_activity": null,
+    "current_processing": {
+      "file_path": "C:\\Users\\Admin\\Documents\\RST\\PDF Editor\\.heimdall\\docs\\AI-Electron-Development-Guide.md",
+      "started_at": 1755141536.9282198,
+      "change_type": "added"
+    }
+  },
+  "subprocess": {
+    "total_calls": 0,
+    "successful_calls": 0,
+    "failed_calls": 0,
+    "retry_attempts": 0,
+    "timeout_count": 0,
+    "average_execution_time": null,
+    "last_error": null
+  },
+  "resources": {
+    "memory_usage_mb": 28.16015625,
+    "cpu_percent": 0.0
+  },
+  "started_at": 1755141536.92722,
+  "pid": 27556,
+  "is_running": true,
+  "uptime_seconds": 0.5203614234924316,
+  "error_count": 0,
+  "last_error": null,
+  "restart_count": 0,
+  "files_monitored": 7,
+  "sync_operations": 0,
+  "last_sync_time": null,
+  "memory_usage_mb": 28.16015625,
+  "cpu_percent": 0.0
+}

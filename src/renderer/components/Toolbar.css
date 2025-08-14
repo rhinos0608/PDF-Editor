@@ -1,0 +1,217 @@
+.toolbar {
+  display: flex;
+  align-items: center;
+  height: var(--toolbar-height);
+  background-color: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 12px;
+  gap: 8px;
+  box-shadow: var(--shadow-sm);
+  z-index: 100;
+}
+
+.toolbar-section {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.toolbar-section.tools-section {
+  flex: 1;
+  justify-content: center;
+  gap: 2px;
+}
+
+.toolbar-section.right-section {
+  margin-left: auto;
+}
+
+.toolbar-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.toolbar-btn:hover:not(:disabled) {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.toolbar-btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.toolbar-btn.active {
+  background-color: var(--accent-light);
+  color: var(--accent-color);
+}
+
+.toolbar-btn.active:hover {
+  background-color: var(--accent-color);
+  color: white;
+}
+
+.toolbar-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.tool-btn {
+  font-size: 16px;
+}
+
+.tool-btn i {
+  pointer-events: none;
+}
+
+.zoom-select {
+  padding: 6px 12px;
+  min-width: 80px;
+  font-size: 14px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.zoom-select:hover {
+  border-color: var(--accent-color);
+}
+
+.zoom-select:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+
+/* Toolbar Tooltips */
+.toolbar-btn::after {
+  content: attr(title);
+  position: absolute;
+  bottom: -32px;
+  left: 50%;
+  transform: translateX(-50%) scale(0);
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  box-shadow: var(--shadow-sm);
+  pointer-events: none;
+  opacity: 0;
+  transition: all 0.2s ease;
+  z-index: 1000;
+}
+
+.toolbar-btn:hover::after {
+  transform: translateX(-50%) scale(1);
+  opacity: 1;
+}
+
+/* Dropdown Menus */
+.toolbar-dropdown {
+  position: absolute;
+  top: 100%;
+  margin-top: 4px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  box-shadow: var(--shadow-md);
+  min-width: 150px;
+  z-index: 1000;
+  opacity: 0;
+  transform: translateY(-10px);
+  pointer-events: none;
+  transition: all 0.2s ease;
+}
+
+.toolbar-dropdown.active {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.toolbar-dropdown-item {
+  padding: 8px 12px;
+  font-size: 14px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toolbar-dropdown-item:hover {
+  background-color: var(--bg-secondary);
+}
+
+.toolbar-dropdown-item:first-child {
+  border-radius: 4px 4px 0 0;
+}
+
+.toolbar-dropdown-item:last-child {
+  border-radius: 0 0 4px 4px;
+}
+
+.toolbar-dropdown-divider {
+  height: 1px;
+  background-color: var(--border-color);
+  margin: 4px 0;
+}
+
+/* Toolbar Badge */
+.toolbar-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background-color: var(--error-color);
+  color: white;
+  font-size: 10px;
+  font-weight: bold;
+  padding: 2px 4px;
+  border-radius: 10px;
+  min-width: 16px;
+  text-align: center;
+}
+
+/* Responsive Toolbar */
+@media (max-width: 1024px) {
+  .toolbar-section.tools-section {
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+  
+  .toolbar-section.tools-section::-webkit-scrollbar {
+    height: 4px;
+  }
+}
+
+@media (max-width: 768px) {
+  .toolbar {
+    padding: 0 8px;
+  }
+  
+  .toolbar-btn {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .toolbar-section {
+    gap: 2px;
+  }
+  
+  .zoom-select {
+    min-width: 60px;
+    padding: 4px 8px;
+  }
+}

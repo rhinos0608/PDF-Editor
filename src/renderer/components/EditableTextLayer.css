@@ -1,0 +1,30 @@
+.editable-text-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+.editable-text-layer.edit-mode {
+  pointer-events: auto;
+  user-select: auto;
+}
+
+.editable-text-layer.edit-mode > div {
+  transition: all 0.2s ease;
+}
+
+.editable-text-layer.edit-mode > div:hover {
+  background-color: rgba(0, 123, 255, 0.1) !important;
+  border-color: #007bff !important;
+}
+
+.editable-text-layer input {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+  border-radius: 2px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}

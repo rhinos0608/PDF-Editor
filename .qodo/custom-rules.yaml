@@ -1,0 +1,179 @@
+# Custom Qodo Rules for Professional PDF Editor
+# These rules are specific to the PDF Editor project requirements
+
+rules:
+  # Electron Security Rules
+  electron_security:
+    - id: "electron_context_isolation"
+      name: "Require Context Isolation"
+      description: "Ensure context isolation is enabled in all BrowserWindow instances"
+      severity: "high"
+      pattern: "new BrowserWindow\\(.*contextIsolation:\\s*false"
+      message: "Context isolation should be enabled for security"
+      
+    - id: "electron_node_integration"
+      name: "Disable Node Integration in Renderer"
+      description: "Node integration should be disabled in renderer processes"
+      severity: "high"
+      pattern: "nodeIntegration:\\s*true"
+      message: "Node integration should be disabled in renderer processes"
+      
+    - id: "electron_preload_validation"
+      name: "Validate Preload Scripts"
+      description: "Ensure preload scripts are properly configured"
+      severity: "medium"
+      pattern: "preload:\\s*['\"](?!.*\\.js['\"])"
+      message: "Preload scripts should have .js extension"
+
+  # PDF Processing Rules
+  pdf_processing:
+    - id: "pdf_memory_management"
+      name: "PDF Memory Management"
+      description: "Ensure proper cleanup of PDF resources"
+      severity: "high"
+      pattern: "PDFDocument\\.load\\(.*\\)(?!.*\\.finally\\(|.*\\.catch\\()"
+      message: "PDF documents should have proper error handling and cleanup"
+      
+    - id: "pdf_file_validation"
+      name: "PDF File Validation"
+      description: "Validate PDF files before processing"
+      severity: "medium"
+      pattern: "fs\\.readFile.*\\.pdf(?!.*validation)"
+      message: "PDF files should be validated before processing"
+      
+    - id: "pdf_size_check"
+      name: "PDF Size Validation"
+      description: "Check PDF file size before loading"
+      severity: "medium"
+      pattern: "PDFDocument\\.load\\((?!.*size.*check)"
+      message: "Large PDF files should be size-checked before loading"
+
+  # React/TypeScript Rules
+  react_typescript:
+    - id: "react_prop_types"
+      name: "Enforce Prop Types"
+      description: "All React components should have proper TypeScript prop types"
+      severity: "medium"
+      pattern: "function\\s+\\w+\\s*\\(\\s*props\\s*\\)(?!.*:\\s*\\w+)"
+      message: "React components should have typed props"
+      
+    - id: "react_error_boundary"
+      name: "Error Boundary Usage"
+      description: "Critical components should be wrapped in error boundaries"
+      severity: "high"
+      pattern: "class\\s+\\w+.*extends.*Component(?!.*componentDidCatch)"
+      message: "Class components should implement error boundaries"
+      
+    - id: "react_hooks_deps"
+      name: "Hook Dependencies"
+      description: "useEffect hooks should have proper dependency arrays"
+      severity: "medium"
+      pattern: "useEffect\\(.*\\)\\s*$"
+      message: "useEffect should include dependency array"
+
+  # Security Rules
+  security:
+    - id: "no_eval_usage"
+      name: "Prohibit eval() Usage"
+      description: "eval() function should not be used"
+      severity: "critical"
+      pattern: "\\beval\\s*\\("
+      message: "eval() is dangerous and should not be used"
+      
+    - id: "sanitize_user_input"
+      name: "Sanitize User Input"
+      description: "User input should be sanitized"
+      severity: "high"
+      pattern: "innerHTML\\s*=\\s*(?!DOMPurify)"
+      message: "User input should be sanitized with DOMPurify"
+      
+    - id: "secure_ipc"
+      name: "Secure IPC Communication"
+      description: "IPC handlers should validate input"
+      severity: "high"
+      pattern: "ipcMain\\.handle\\(.*\\)\\s*=>\\s*{(?!.*validation)"
+      message: "IPC handlers should validate input parameters"
+
+  # Performance Rules
+  performance:
+    - id: "large_file_handling"
+      name: "Large File Handling"
+      description: "Large files should be processed in chunks"
+      severity: "medium"
+      pattern: "fs\\.readFileSync\\(.*\\)(?!.*chunk)"
+      message: "Large files should be read asynchronously in chunks"
+      
+    - id: "memory_leaks"
+      name: "Prevent Memory Leaks"
+      description: "Event listeners should be properly cleaned up"
+      severity: "high"
+      pattern: "addEventListener\\((?!.*removeEventListener)"
+      message: "Event listeners should be removed in cleanup"
+      
+    - id: "optimize_renders"
+      name: "Optimize React Renders"
+      description: "Use React.memo for expensive components"
+      severity: "low"
+      pattern: "export\\s+(?:default\\s+)?function\\s+\\w+.*\\{[\\s\\S]*useState[\\s\\S]*\\}(?!.*React\\.memo)"
+      message: "Consider using React.memo for components with state"
+
+  # Code Quality Rules
+  code_quality:
+    - id: "function_complexity"
+      name: "Function Complexity"
+      description: "Functions should not be overly complex"
+      severity: "medium"
+      pattern: "function\\s+\\w+[\\s\\S]*?\\{[\\s\\S]*?\\}(?=\\s*(?:function|const|let|var|export|$))"
+      message: "Consider breaking down complex functions"
+      
+    - id: "magic_numbers"
+      name: "Avoid Magic Numbers"
+      description: "Use named constants instead of magic numbers"
+      severity: "low"
+      pattern: "\\b(?<!\\.)\\d{2,}\\b(?!\\s*[;,)])"
+      message: "Consider using named constants for magic numbers"
+      
+    - id: "error_handling"
+      name: "Proper Error Handling"
+      description: "Async functions should have proper error handling"
+      severity: "high"
+      pattern: "async\\s+function[\\s\\S]*?\\{(?![\\s\\S]*try[\\s\\S]*catch)"
+      message: "Async functions should include try-catch blocks"
+
+# Rule Categories
+categories:
+  critical:
+    - "electron_security"
+    - "security"
+  
+  important:
+    - "pdf_processing"
+    - "performance"
+  
+  recommended:
+    - "react_typescript"
+    - "code_quality"
+
+# File-specific rule overrides
+file_overrides:
+  "src/main/**":
+    enabled_rules:
+      - "electron_security"
+      - "security"
+      - "performance"
+  
+  "src/renderer/**":
+    enabled_rules:
+      - "react_typescript"
+      - "security"
+      - "performance"
+  
+  "src/preload/**":
+    enabled_rules:
+      - "electron_security"
+      - "security"
+  
+  "tests/**":
+    disabled_rules:
+      - "magic_numbers"
+      - "function_complexity"

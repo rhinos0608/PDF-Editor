@@ -1,0 +1,162 @@
+.inline-text-editor {
+  position: absolute;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+}
+
+.text-editor-input {
+  font-family: inherit;
+  line-height: 1.2;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+  border: 2px solid #007bff;
+  border-radius: 3px;
+  padding: 4px 6px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  outline: none;
+  resize: both;
+  min-width: 80px;
+  min-height: 20px;
+}
+
+.text-editor-input:focus {
+  border-color: #0056b3;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.edit-controls {
+  display: flex;
+  gap: 2px;
+  margin-top: 2px;
+  align-self: flex-end;
+}
+
+.save-btn,
+.cancel-btn {
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.save-btn {
+  background: #28a745;
+  color: white;
+}
+
+.save-btn:hover {
+  background: #1e7e34;
+  transform: scale(1.05);
+}
+
+.cancel-btn {
+  background: #dc3545;
+  color: white;
+}
+
+.cancel-btn:hover {
+  background: #c82333;
+  transform: scale(1.05);
+}
+
+.editor-info {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+  font-size: 9px;
+  color: #666;
+  align-self: flex-end;
+}
+
+.char-count {
+  background: rgba(255, 255, 255, 0.9);
+  padding: 1px 3px;
+  border-radius: 2px;
+  border: 1px solid #ddd;
+}
+
+.position-info {
+  background: rgba(0, 123, 255, 0.1);
+  padding: 1px 3px;
+  border-radius: 2px;
+  border: 1px solid #007bff;
+  color: #007bff;
+}
+
+/* Ensure editor appears above PDF content */
+.inline-text-editor * {
+  pointer-events: auto;
+}
+
+/* Animation for smooth appearance */
+.inline-text-editor {
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Dark theme support */
+.adobe-app.dark .text-editor-input {
+  background: rgba(45, 45, 45, 0.98);
+  color: #fff;
+  border-color: #007bff;
+}
+
+.adobe-app.dark .char-count {
+  background: rgba(45, 45, 45, 0.9);
+  color: #ccc;
+  border-color: #555;
+}
+
+.adobe-app.dark .position-info {
+  background: rgba(0, 123, 255, 0.2);
+  color: #66b3ff;
+}
+
+/* Responsive sizing */
+@media (max-width: 768px) {
+  .text-editor-input {
+    font-size: 14px;
+    padding: 6px 8px;
+  }
+  
+  .save-btn,
+  .cancel-btn {
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+  }
+}
+
+/* High DPI display support */
+@media (-webkit-min-device-pixel-ratio: 2) {
+  .text-editor-input {
+    border-width: 1px;
+  }
+}
+
+/* Print mode - hide editor */
+@media print {
+  .inline-text-editor {
+    display: none;
+  }
+}

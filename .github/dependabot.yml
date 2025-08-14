@@ -1,0 +1,20 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "your-github-username"
+    labels:
+      - "dependencies"
+      - "security"
+    ignore:
+      # Ignore major updates for these packages to prevent breaking changes
+      - dependency-name: "electron"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "pdf-lib"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "pdfjs-dist"
+        update-types: ["version-update:semver-major"]
