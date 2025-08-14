@@ -2,12 +2,12 @@ const path = require('path');
 
 module.exports = {
   mode: process.env.NODE_ENV || 'production',
-  target: 'electron-main',
-  entry: path.join(__dirname, 'src', 'main.js'),
+  target: 'electron-preload',
+  entry: path.join(__dirname, 'src', 'preload.js'),
   output: {
     path: path.join(__dirname, 'dist', 'main'),
-    filename: 'main.js',
-    clean: false // Don't clean to preserve renderer files
+    filename: 'preload.js',
+    clean: false // Don't clean to preserve other files
   },
   resolve: {
     extensions: ['.js', '.ts', '.json']
@@ -28,25 +28,14 @@ module.exports = {
         test: /\.ts$/,
         exclude: /node_modules/,
         use: 'ts-loader'
-      },
-      {
-        test: /\.node$/,
-        use: 'node-loader'
       }
     ]
-  },
-  externals: {
-    electron: 'commonjs electron',
-    'fs-extra': 'commonjs fs-extra',
-    'electron-store': 'commonjs electron-store',
-    'electron-updater': 'commonjs electron-updater',
-    'electron-log': 'commonjs electron-log'
   },
   node: {
     __dirname: false,
     __filename: false
   },
   optimization: {
-    minimize: true
+    minimize: false // Don't minimize preload for easier debugging
   }
 };

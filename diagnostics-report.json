@@ -1,0 +1,15 @@
+{
+  "timestamp": "2025-08-14T00:19:28.279Z",
+  "issues": [
+    "Missing built file: dist/main/preload.js"
+  ],
+  "warnings": [
+    "Not running as administrator"
+  ],
+  "system": {
+    "platform": "win32",
+    "arch": "x64",
+    "node": "v22.16.0",
+    "cwd": "C:\\Users\\Admin\\Documents\\RST\\PDF Editor"
+  }
+}
