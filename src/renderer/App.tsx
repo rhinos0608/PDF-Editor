@@ -2221,6 +2221,16 @@ const App: React.FC = () => {
     // Note: addToHistory is called within successful strategy, not here
   };
 
+  const setCurrentPage = (page: number) => {
+    if (!state.currentPDF) return;
+    
+    const validPage = Math.max(1, Math.min(page, state.totalPages));
+    setState(prev => ({
+      ...prev,
+      currentPage: validPage
+    }));
+  };
+
   const addBookmark = (title: string, page: number) => {
     const newBookmark = {
       id: Date.now(),

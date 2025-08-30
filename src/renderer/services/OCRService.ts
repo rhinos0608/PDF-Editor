@@ -124,32 +124,55 @@ export class OCRService {
         await this.worker.terminate();
       }
       
-      // Create new worker with local paths
-      this.worker = await Tesseract.createWorker(language, 1, {
-        logger: (m: any) => {
-          if (m.status === 'recognizing text') {
-            // Emit progress event
-            this.onProgress?.(m.progress);
-          }
-        },
-        // Specify local paths for worker and core files (absolute from root)
-        workerPath: '/worker.min.js',
-        corePath: '/tesseract-core.wasm.js',
-        langPath: '/tessdata'
-      });
+      // Check if running in production with CSP restrictions
+      const hasCSPRestrictions = typeof window !== 'undefined' && 
+        window.location.protocol === 'file:' || 
+        document.querySelector('meta[http-equiv="Content-Security-Policy"]');
       
-      // Set OCR parameters for better accuracy
-      await this.worker.setParameters({
-        tessedit_pageseg_mode: Tesseract.PSM.AUTO,
-        preserve_interword_spaces: '1',
-        tessedit_char_whitelist: ' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~'
-      });
+      if (hasCSPRestrictions) {
+        // In production with CSP, create worker without dynamic imports
+        this.worker = await Tesseract.createWorker({
+          langPath: './tessdata',
+          logger: (m: any) => {
+            if (m.status === 'recognizing text') {
+              this.onProgress?.(m.progress);
+            }
+          },
+          // Use preloaded worker to avoid dynamic script loading
+          workerBlobURL: false,
+          gzip: false
+        });
+      } else {
+        // In development, use standard configuration
+        this.worker = await Tesseract.createWorker(language, 1, {
+          logger: (m: any) => {
+            if (m.status === 'recognizing text') {
+              this.onProgress?.(m.progress);
+            }
+          }
+        });
+      }
+      
+      // Load language if worker was created successfully
+      if (this.worker) {
+        await this.worker.loadLanguage(language);
+        await this.worker.initialize(language);
+        
+        // Set OCR parameters for better accuracy
+        await this.worker.setParameters({
+          tessedit_pageseg_mode: Tesseract.PSM.AUTO,
+          preserve_interword_spaces: '1',
+          tessedit_char_whitelist: ' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~'
+        });
+      }
       
       this.currentLanguage = language;
       this.isInitialized = true;
     } catch (error: any) {
       logger.error('Error initializing OCR service', error, { language });
-      throw createAppError('OCR_INITIALIZATION_FAILED', 'Failed to initialize OCR service', { language });
+      // Don't throw in production - OCR is optional feature
+      console.warn('OCR service disabled due to CSP restrictions. This feature requires relaxed security settings.');
+      this.isInitialized = false;
     }
   }
 

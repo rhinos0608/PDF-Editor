@@ -8,26 +8,38 @@ export function configurePDFJSWorker(): void {
   try {
     // Import PDF.js dynamically
     import('pdfjs-dist').then(pdfjsLib => {
-      // Check if we're in Electron environment
+      // Always use local worker file to avoid CSP issues
+      // The worker file is bundled with webpack and available locally
+      pdfjsLib.GlobalWorkerOptions.workerSrc = './pdf.worker.min.js';
+      
       const isElectron = typeof window !== 'undefined' && window.electronAPI;
       
       if (isElectron) {
-        // In Electron, use the bundled worker from dist
-        pdfjsLib.GlobalWorkerOptions.workerSrc = './pdf.worker.min.js';
-        console.log('✅ PDF.js worker configured for Electron environment');
+        console.log('✅ PDF.js worker configured for Electron environment (local file)');
       } else {
-        // In web mode, use CDN
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@latest/build/pdf.worker.min.js';
-        console.log('✅ PDF.js worker configured for Web environment');
+        console.log('✅ PDF.js worker configured for Web environment (local file)');
       }
+      
+      // Verify worker is accessible
+      fetch('./pdf.worker.min.js')
+        .then(response => {
+          if (response.ok) {
+            console.log('✅ PDF.js worker file verified as accessible');
+          } else {
+            console.warn('⚠️ PDF.js worker file returned status:', response.status);
+          }
+        })
+        .catch(error => {
+          console.warn('⚠️ Could not verify PDF.js worker file:', error.message);
+        });
     }).catch(error => {
       console.error('❌ Failed to configure PDF.js worker:', error);
       
-      // Fallback configuration
+      // Fallback configuration - still use local file
       if (typeof window !== 'undefined' && (window as any).pdfjsLib) {
         const pdfjsLib = (window as any).pdfjsLib;
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@latest/build/pdf.worker.min.js';
-        console.log('✅ PDF.js worker configured via fallback method');
+        pdfjsLib.GlobalWorkerOptions.workerSrc = './pdf.worker.min.js';
+        console.log('✅ PDF.js worker configured via fallback method (local file)');
       }
     });
   } catch (error) {
